@@ -3,7 +3,9 @@
 *.csv
 *.pkl
 *.pickle
-
+!data/example_x.csv
+!data/example_y.csv
+!data/Series3_6.115.17_padel.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
