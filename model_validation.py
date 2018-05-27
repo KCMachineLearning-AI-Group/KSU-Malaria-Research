@@ -24,7 +24,6 @@ class ModelValidation:
         """
         assert isinstance(x_data, DataFrame), "x_data must be a pandas DataFrame"
         assert isinstance(y_data, DataFrame) or isinstance(y_data, Series), "y_data must be pandas DataFrame or Series"
-        assert len(x_data) == 47, "Expected 47 training examples and received {}".format(len(x_data))
         assert y_data.dtypes == "float", "Expected y_data to be float dtype and received {}".format(y_data.dtypes)
 
         if add_train_data is not None:
@@ -73,7 +72,6 @@ class ModelValidation:
         """
         assert isinstance(x_data, DataFrame), "x_data must be a pandas DataFrame"
         assert isinstance(y_data, DataFrame) or isinstance(y_data, Series), "y_data must be pandas DataFrame or Series"
-        assert len(x_data) == 47, "Expected 47 training examples and received {}".format(len(x_data))
         int_types = ["int", "int64", "int32"]
         assert y_data.dtypes in int_types, "Expected y_data to be int dtype and received {}".format(y_data.dtypes)
 
