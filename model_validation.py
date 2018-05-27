@@ -1,5 +1,5 @@
 from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.metrics import log_loss, roc_auc_score, confusion_matrix
+from sklearn.metrics import log_loss, roc_auc_score, confusion_matrix, classification_report
 from sklearn.metrics import mean_squared_error, r2_score
 from numpy import sqrt, mean
 from pandas import DataFrame, Series
@@ -60,7 +60,7 @@ class ModelValidation:
                     print("average {}: {}".format(metric, mean(scoring_dict[metric])))
         return scoring_dict
 
-    def score_classifier(self, x_data, y_data, model, add_train_data=None, verbose=1):
+    def score_classifier(self, x_data, y_data, model, add_train_data=None, verbose=1, cls_report=False):
         """
         Model validation method for producing comparable model evaluation. Uses Stratified K-Fold LOOCV where
         K equals the number of positive class examples.
@@ -81,7 +81,7 @@ class ModelValidation:
             raise NotImplementedError
 
         # create logging dictionary to track scores
-        scoring_dict = {"log_loss": [], "roc_auc_score": [], "confusion_matrix": []}
+        scoring_dict = {"log_loss": [], "roc_auc_score": [], "confusion_matrix": [], "classification_report": []}
         # num_splits count number of positive examples
         num_splits = sum(y_data.values)
         scoring_dict["num_splits"] = num_splits
@@ -99,11 +99,13 @@ class ModelValidation:
             scoring_dict["log_loss"].append(log_loss(y_test, y_))
             scoring_dict["roc_auc_score"].append(roc_auc_score(y_test, y_))
             scoring_dict["confusion_matrix"].append(confusion_matrix(y_test, y_, labels=[1, 0]))
+            if cls_report:
+                scoring_dict["classification_report"].append(classification_report(y_test, y_, labels=[1, 0]))
         if verbose == 1:
             # Print contents of dictionary except confusion matrix
             print("with {} splits and {} repeats".format(num_splits, self.REPEATS))
             for metric in scoring_dict:
-                if metric == "num_splits":
+                if metric in ["num_splits", "classification_report"]:
                     continue
                 elif metric == "confusion_matrix":
                     print("average confusion_matrix")
