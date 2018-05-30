@@ -42,7 +42,6 @@ class ModelValidation:
         for train, test in rskf.split(x_data, y_class):
             x_train, x_test = x_data.iloc[train, :], x_data.iloc[test, :]
             y_train, y_test = y_data.iloc[train], y_data.iloc[test]
-            assert sum(y_test) > 0, "no positive examples in split"
             # train model, test model with all scoring parameters
             model.fit(x_train, y_train)
             y_ = model.predict(x_test)
