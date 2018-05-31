@@ -56,50 +56,49 @@ x_copy = x_data.copy()
 y_copy = y_data.copy()
 
 # Remove highly correlated features, group by correlation and select 1 from each group
-best_corr_thresh = 0
-best_r2_score = 0
+best_corr_thresh = .98
+# best_r2_score = .18796
 
-for corr_threshold in np.arange(.9, .95, .01):
-    # corr_threshold = best_corr_thresh
-    corr_matrix = x_copy.corr()
-    corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)  # borrowed from Karl D's answer
+# Use all features except those with very high correlations. Those can be treated as identical.
+# Using backward stepwise selection, remove a small number of features each iteration
+#
 
-    already_in = set()
-    corr_result = []
-    for col in corr_matrix:
-        correlated = corr_matrix[col][np.abs(corr_matrix[col]) > corr_threshold].index.tolist()
-        if correlated and col not in already_in:
-            already_in.update(set(correlated))
-            correlated.append(col)
-            corr_result.append(correlated)
-        elif col not in already_in:
-            already_in.update(set([col]))
-            corr_result.append([col])
+corr_threshold = best_corr_thresh
+corr_matrix = x_copy.corr()
+corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)  # borrowed from Karl D's answer
 
-    non_correlated_feats = [corr_feats[0] for corr_feats in corr_result]
+already_in = set()
+corr_result = []
+for col in corr_matrix:
+    correlated = corr_matrix[col][np.abs(corr_matrix[col]) > corr_threshold].index.tolist()
+    if correlated and col not in already_in:
+        already_in.update(set(correlated))
+        correlated.append(col)
+        corr_result.append(correlated)
+    elif col not in already_in:
+        already_in.update(set([col]))
+        corr_result.append([col])
 
-    # Benchmark for Lasso regression
-    model = LinearSVR()
-    params = {"C": np.arange(.1, 1.1, .1)}
-    # rskf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)  # Classification only
-    grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
+non_correlated_feats = [corr_feats[0] for corr_feats in corr_result]
 
-    # Normalize
-    x_scaler = StandardScaler()
-    y_scaler = StandardScaler()
+# Benchmark for Lasso regression
+model = LinearSVR()
+params = {"C": np.arange(.1, 1.1, .1)}
+# rskf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)  # Classification only
+grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
 
-    x_data.loc[:, :] = x_scaler.fit_transform(x_copy)
-    y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_copy.values.reshape(-1, 1)))
+# Normalize
+x_scaler = StandardScaler()
+y_scaler = StandardScaler()
 
-    grid.fit(x_data.loc[:, non_correlated_feats], y_data)
+x_data.loc[:, :] = x_scaler.fit_transform(x_copy)
+y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_copy.values.reshape(-1, 1)))
 
-    validate = ModelValidation()
-    results = validate.score_regressor(x_data.loc[:, non_correlated_feats], y_data, grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
-    round_r2_score = np.mean(results["r2_score"])
+grid.fit(x_data.loc[:, non_correlated_feats], y_data)
 
-    if round_r2_score > best_r2_score:
-        best_corr_thresh = corr_threshold
-        best_r2_score = round_r2_score
+validate = ModelValidation()
+results = validate.score_regressor(x_data.loc[:, non_correlated_feats], y_data, grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
+round_r2_score = np.mean(results["r2_score"])
 
-
+# Best R2 Score: .1879, corr_threshold = .91
 
