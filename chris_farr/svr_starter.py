@@ -51,20 +51,22 @@ for feat in x_data.columns[x_data.dtypes == 'float64']:
     if feature_df.max() < 1000:
         x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
 
-# Store copies of x_data and y_data for loop
-x_copy = x_data.copy()
-y_copy = y_data.copy()
+# Normalize
+x_scaler = StandardScaler()
+y_scaler = StandardScaler()
+
+x_data.loc[:, :] = x_scaler.fit_transform(x_data)
+y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
 
 # Remove highly correlated features, group by correlation and select 1 from each group
-best_corr_thresh = .98
+best_corr_thresh = .97
 # best_r2_score = .18796
 
 # Use all features except those with very high correlations. Those can be treated as identical.
-# Using backward stepwise selection, remove a small number of features each iteration
-#
+
 
 corr_threshold = best_corr_thresh
-corr_matrix = x_copy.corr()
+corr_matrix = x_data.corr()
 corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)  # borrowed from Karl D's answer
 
 already_in = set()
@@ -79,26 +81,50 @@ for col in corr_matrix:
         already_in.update(set([col]))
         corr_result.append([col])
 
-non_correlated_feats = [corr_feats[0] for corr_feats in corr_result]
+
+all_feats = set(list(x_data.columns))
+selected_feats = set([corr_feats[0] for corr_feats in corr_result])
+removed_feats = all_feats - selected_feats
+
+x_data.loc[:, selected_feats]
+
+# For each column, count the number in the group (col, count)
+corr_group_counts = dict([(feat, len(corr_feats)) for corr_feats in corr_result for feat in corr_feats])
+
+# Selecting for removal
 
 # Benchmark for Lasso regression
-model = LinearSVR()
+model = LinearSVR(random_state=0)
 params = {"C": np.arange(.1, 1.1, .1)}
 # rskf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)  # Classification only
 grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
 
-# Normalize
-x_scaler = StandardScaler()
-y_scaler = StandardScaler()
-
-x_data.loc[:, :] = x_scaler.fit_transform(x_copy)
-y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_copy.values.reshape(-1, 1)))
-
-grid.fit(x_data.loc[:, non_correlated_feats], y_data)
+grid.fit(x_data.loc[:, selected_feats], y_data)
 
 validate = ModelValidation()
-results = validate.score_regressor(x_data.loc[:, non_correlated_feats], y_data, grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
+results = validate.score_regressor(x_data.loc[:, selected_feats], y_data,
+                                   grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
 round_r2_score = np.mean(results["r2_score"])
 
 # Best R2 Score: .1879, corr_threshold = .91
+
+# Using backward stepwise selection, remove a max of 5% each iteration (tune)
+# Favor the features that are part of larger correlated group when tie
+
+# Rank features by coef_
+[feat for coef, feat in sorted(zip(abs(grid.best_estimator_.coef_), selected_feats))]
+# TODO Start here!!!
+# TODO determine best way to select features for removal. If the starting features are less correlated then
+# todo it'll be easier to keep the model stable when removing features. Try keeping it simple and tune the threshold
+# So just remove the first 1-5% or so...
+
+
+# Starting with groups of perfect correlations, select one from each group to represent that dimension
+# Create loop that selects features for removal by number of correlated features in a group with a decreasing
+# threshold and also by coefficient (primary sort)
+
+# Build a set for removal
+
+
+
 
