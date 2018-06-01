@@ -5,7 +5,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import make_scorer, r2_score
 from sklearn.svm import LinearSVR
 from sklearn.preprocessing import StandardScaler
-
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy import spatial
 
 # Load data
 df = pd.read_csv("data/Series3_6.15.17_padel.csv", index_col=0)
@@ -59,52 +60,57 @@ x_data.loc[:, :] = x_scaler.fit_transform(x_data)
 y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
 
 # Remove highly correlated features, group by correlation and select 1 from each group
-best_corr_thresh = .97
+# best_corr_thresh = .97
 # best_r2_score = .18796
+
+best_cos_thresh = 0
+best_r2_score = 0
 
 # Use all features except those with very high correlations. Those can be treated as identical.
 
+for cos_threshold in np.arange(.9, 1., .01):
+    # cos_threshold = .98
+    cos_matrix = pd.DataFrame(data=cosine_similarity(x_data.transpose()),
+                              index=x_data.columns, columns=x_data.columns)
+    cos_matrix.loc[:, :] = np.tril(cos_matrix, k=-1)
 
-corr_threshold = best_corr_thresh
-corr_matrix = x_data.corr()
-corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)  # borrowed from Karl D's answer
-
-already_in = set()
-corr_result = []
-for col in corr_matrix:
-    correlated = corr_matrix[col][np.abs(corr_matrix[col]) > corr_threshold].index.tolist()
-    if correlated and col not in already_in:
-        already_in.update(set(correlated))
-        correlated.append(col)
-        corr_result.append(correlated)
-    elif col not in already_in:
-        already_in.update(set([col]))
-        corr_result.append([col])
+    already_in = set()
+    cos_result = []
+    for col in cos_matrix:
+        cosine_similar = cos_matrix[col][np.abs(cos_matrix[col]) > cos_threshold].index.tolist()
+        if cosine_similar and col not in already_in:
+            already_in.update(set(cosine_similar))
+            cosine_similar.append(col)
+            cos_result.append(cosine_similar)
+        elif col not in already_in:
+            already_in.update(set([col]))
+            cos_result.append([col])
 
 
-all_feats = set(list(x_data.columns))
-selected_feats = set([corr_feats[0] for corr_feats in corr_result])
-removed_feats = all_feats - selected_feats
+    all_feats = set(list(x_data.columns))
+    selected_feats = set([feats[0] for feats in cos_result])
+    removed_feats = all_feats - selected_feats
 
-x_data.loc[:, selected_feats]
+    x_data.loc[:, selected_feats]
 
-# For each column, count the number in the group (col, count)
-corr_group_counts = dict([(feat, len(corr_feats)) for corr_feats in corr_result for feat in corr_feats])
+    # Selecting for removal
 
-# Selecting for removal
+    # Benchmark for Lasso regression
+    model = LinearSVR(random_state=0)
+    params = {"C": np.arange(.1, 1.1, .1)}
+    # rskf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)  # Classification only
+    grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
 
-# Benchmark for Lasso regression
-model = LinearSVR(random_state=0)
-params = {"C": np.arange(.1, 1.1, .1)}
-# rskf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)  # Classification only
-grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
+    grid.fit(x_data.loc[:, selected_feats], y_data)
 
-grid.fit(x_data.loc[:, selected_feats], y_data)
+    validate = ModelValidation()
+    results = validate.score_regressor(x_data.loc[:, selected_feats], y_data,
+                                       grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
+    round_r2_score = np.mean(results["r2_score"])
 
-validate = ModelValidation()
-results = validate.score_regressor(x_data.loc[:, selected_feats], y_data,
-                                   grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
-round_r2_score = np.mean(results["r2_score"])
+    if round_r2_score > best_r2_score:
+        best_r2_score = round_r2_score
+        best_cos_thresh = cos_threshold
 
 # Best R2 Score: .1879, corr_threshold = .91
 
