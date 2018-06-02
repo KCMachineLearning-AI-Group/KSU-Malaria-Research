@@ -7,6 +7,7 @@ from sklearn.svm import LinearSVR
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy import spatial
+from sklearn.cluster import KMeans
 
 # Load data
 df = pd.read_csv("data/Series3_6.15.17_padel.csv", index_col=0)
@@ -60,57 +61,64 @@ x_data.loc[:, :] = x_scaler.fit_transform(x_data)
 y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
 
 # Remove highly correlated features, group by correlation and select 1 from each group
-# best_corr_thresh = .97
+# best_corr_thresh = .91
 # best_r2_score = .18796
 
-best_cos_thresh = 0
-best_r2_score = 0
+# best_cos_thresh = .91
+# best_r2_score = .19379
 
-# Use all features except those with very high correlations. Those can be treated as identical.
-
-for cos_threshold in np.arange(.9, 1., .01):
-    # cos_threshold = .98
-    cos_matrix = pd.DataFrame(data=cosine_similarity(x_data.transpose()),
-                              index=x_data.columns, columns=x_data.columns)
-    cos_matrix.loc[:, :] = np.tril(cos_matrix, k=-1)
-
-    already_in = set()
-    cos_result = []
-    for col in cos_matrix:
-        cosine_similar = cos_matrix[col][np.abs(cos_matrix[col]) > cos_threshold].index.tolist()
-        if cosine_similar and col not in already_in:
-            already_in.update(set(cosine_similar))
-            cosine_similar.append(col)
-            cos_result.append(cosine_similar)
-        elif col not in already_in:
-            already_in.update(set([col]))
-            cos_result.append([col])
+# https://reader.elsevier.com/reader/sd/20C9D54036F9EB702CD7F163E0D03823B6FF3F3A4F2E0EA1BB6E3C8B6895A65F26CDFC723FAF98BC736BF5C7B429580C
+# kmeans cluster features to determine similarity
 
 
-    all_feats = set(list(x_data.columns))
-    selected_feats = set([feats[0] for feats in cos_result])
-    removed_feats = all_feats - selected_feats
+kmeans = KMeans(n_clusters=int(x_data.shape[1] * .9), n_jobs=7)
+result = kmeans.fit_transform(x_data.transpose())
+from keras.utils import np_utils
 
-    x_data.loc[:, selected_feats]
+np_utils.to_categorical(np.argmax(result, axis=1))
+# TODO start here,!!!!!! reducing based on k-means
+# perform kmeans, then count how many in a group
+# rank removal with equal coef by number in similar group, then recalculate number in group
 
-    # Selecting for removal
 
-    # Benchmark for Lasso regression
-    model = LinearSVR(random_state=0)
-    params = {"C": np.arange(.1, 1.1, .1)}
-    # rskf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)  # Classification only
-    grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
+# Remove any features that have >.99 cosine similarity
+# Backward stepwise, count similarity groups by feature, sort by number in group and then
+# If only one feature in each group then lower cosine similarity threshold by .01
+# Iteratively remove only one feature at a time, update the feature lists, then remove the next
+cos_groups = dict([(feat, feat_list.copy()) for feat_list in cos_result for feat in feat_list])
 
-    grid.fit(x_data.loc[:, selected_feats], y_data)
+print(cos_groups.keys())
 
-    validate = ModelValidation()
-    results = validate.score_regressor(x_data.loc[:, selected_feats], y_data,
-                                       grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
-    round_r2_score = np.mean(results["r2_score"])
+len(cos_groups)
 
-    if round_r2_score > best_r2_score:
-        best_r2_score = round_r2_score
-        best_cos_thresh = cos_threshold
+# Sort by number in group
+
+# If removing, for every feature in group, remove that feature from the group
+feat_for_removal = list(cos_groups.keys())[0]
+# for feat in cos_groups[feat_for_removal]:
+
+cos_groups[feat_for_removal].remove(feat_for_removal)
+
+# Calculate length of list all features in group
+for feat in cos_groups[feat_for_removal]:
+    print(len(cos_groups[feat]))
+
+
+cos_groups.pop(feat_for_removal)
+
+# Benchmark for Lasso regression
+model = LinearSVR(random_state=0)
+params = {"C": np.arange(.1, 1.1, .1)}
+# rskf = RepeatedStratifiedKFold(n_splits=10, n_repeats=10, random_state=0)  # Classification only
+grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
+
+grid.fit(x_data.loc[:, selected_feats], y_data)
+
+validate = ModelValidation()
+results = validate.score_regressor(x_data.loc[:, selected_feats], y_data,
+                                   grid.best_estimator_, pos_split=y_scaler.transform([[2.1]]))
+round_r2_score = np.mean(results["r2_score"])
+
 
 # Best R2 Score: .1879, corr_threshold = .91
 
