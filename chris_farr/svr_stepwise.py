@@ -82,37 +82,34 @@ y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
 
 # Establish benchmark
 print("Establishing benchmark....")
-model = LinearSVR(random_state=0, C=0.1)
+model = LinearSVR(random_state=0, C=0.05)
 ModelValidation().score_regressor(x_data, y_data, model, pos_split=y_scaler.transform([[2.1]]))
 print("\n")
 
 # Group features by cosine similarity only one from each group with .999 cosine similarity
 selected_feats = set(x_data.columns)
-print("Removing features with high cosine similarity....\n")
+print("Grouping highly correlated features....\n")
 while True:
     # Loop to ensure all are removed, naive approach used for grouping
-    cos_threshold = .99
-    cos_matrix = pd.DataFrame(data=cosine_similarity(x_data.loc[:, selected_feats].transpose()),
-                              index=x_data.loc[:, selected_feats].columns,
-                              columns=x_data.loc[:, selected_feats].columns)
-    cos_matrix.loc[:, :] = np.tril(cos_matrix, k=-1)
-    already_in = set()  # Store columns
-    cos_result = []
 
-    # Loop through each column in the matrix
-    for col in cos_matrix:
-        # Return index where cosine matrix value is greater than threshold
-        cosine_similar = cos_matrix[col][np.abs(cos_matrix[col]) > cos_threshold].index.tolist()
-        if cosine_similar and col not in already_in:
-            cosine_similar.append(col)  # Combine column with other similar features
-            already_in.update(set(cosine_similar))
-            cos_result.append(cosine_similar)
-        elif col not in already_in:  # If only single feature, add to set (don't need the else with set)
+    corr_threshold = .95
+    corr_matrix = x_data.corr()
+    corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)  # borrowed from Karl D's answer
+
+    already_in = set()
+    corr_result = []
+    for col in corr_matrix:
+        correlated = corr_matrix[col][np.abs(corr_matrix[col]) > corr_threshold].index.tolist()
+        if correlated and col not in already_in:
+            already_in.update(set(correlated))
+            correlated.append(col)
+            corr_result.append(correlated)
+        elif col not in already_in:
             already_in.update(set([col]))
-            cos_result.append([col])
+            corr_result.append([col])
 
     all_feats = set(list(x_data.loc[:, selected_feats].columns))
-    selected_feats = set([feats[0] for feats in cos_result])
+    selected_feats = set([feats[0] for feats in corr_result])
     removed_feats = all_feats - selected_feats
 
     print("all_feats %s" % len(all_feats))
@@ -126,7 +123,7 @@ while True:
 x_copy = x_data.loc[:, selected_feats]
 # Measure starting benchmark
 print("new benchmark....")
-model = LinearSVR(random_state=0, C=.1)
+model = LinearSVR(random_state=0, C=.05)
 benchmark = ModelValidation().score_regressor(x_copy, y_data, model, pos_split=y_scaler.transform([[2.1]]))
 print("\n")
 
@@ -168,7 +165,7 @@ while True:
         stop_range = min(best_C * 1.3, 1)
         params = {"C": np.arange(start_range, stop_range, (stop_range - start_range) / 10)}
     else:
-        params = {"C": np.arange(.1, 1., .01)}
+        params = {"C": np.arange(.05, .5, .05)}
 
     grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
     grid.fit(x_copy.loc[:, selected_feats], y_data)
@@ -224,7 +221,7 @@ while True:
     print("\n")
     if np.mean(new_benchmark["r2_score"]) < np.mean(benchmark["r2_score"]):
         i += 1
-        if i > 50:
+        if i > 5:
             break
     else:
         i = 0
@@ -238,8 +235,8 @@ ModelValidation().score_regressor(x_data.loc[:, best_features], y_data, model,
                                   pos_split=y_scaler.transform([[2.1]]))
 
 
-# final benchmark: Final benchmark.... percentile 5
+# correlation threshold: .95, percentile 1
+# Final benchmark....
 # with 3 splits and 10 repeats
-# average r2_score: 0.19747451558946033
-# average rmse: 0.8644121895737228
-
+# average r2_score: 0.1721241982834196
+# average rmse: 0.8733633435911139
