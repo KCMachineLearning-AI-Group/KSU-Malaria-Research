@@ -53,6 +53,20 @@ for feat in x_data.columns[x_data.dtypes == 'float64']:
     if feature_df.max() < 1000:
         x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
 
+
+"""
+1. Group normalized features with cosine similarity of >.99, select only one feature 
+from groups of identical features
+2. Cluster remaining features using k-means (which from what I've read, euclidean distance 
+is a linear equivalent to cosine similarity, reference added below) into an arbitrary number of groups. 
+3. Use a model to extract feature importance and select a portion for removal, for the 
+group slated for removal those will be sorted by the number of features in their cluster, favoring 
+features that have the most features similar to them for final removal in that iteration. 
+4. After a handful are removed, rerun the cluster analysis to reset the group numbers and continue 
+until 5% of the starting features are removed
+5. Repeat
+"""
+
 # Normalize
 x_scaler = StandardScaler()
 y_scaler = StandardScaler()
@@ -60,22 +74,78 @@ y_scaler = StandardScaler()
 x_data.loc[:, :] = x_scaler.fit_transform(x_data)
 y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
 
-# Remove highly correlated features, group by correlation and select 1 from each group
-# best_corr_thresh = .91
-# best_r2_score = .18796
+# Previous implementation:
 
-# best_cos_thresh = .91
-# best_r2_score = .19379
+# cos_threshold = .999
+# cos_matrix = pd.DataFrame(data=cosine_similarity(x_data.transpose()),
+#                           index=x_data.columns, columns=x_data.columns)
+# cos_matrix.loc[:, :] = np.tril(cos_matrix, k=-1)
+#
+# already_in = set()
+# cos_result = []
+# for col in cos_matrix:
+#     cosine_similar = cos_matrix[col][np.abs(cos_matrix[col]) > cos_threshold].index.tolist()
+#     if cosine_similar and col not in already_in:
+#         already_in.update(set(cosine_similar))
+#         cosine_similar.append(col)
+#         cos_result.append(cosine_similar)
+#     elif col not in already_in:
+#         already_in.update(set([col]))
+#         cos_result.append([col])
+#
+#
+# len(cos_result)
+# x_data.shape
+#
+#
+# # Create loop to ensure all similar features represented only once
+#
+# all_feats = set(list(x_data.columns))
+# selected_feats = set([feats[0] for feats in cos_result])
+# removed_feats = all_feats - selected_feats
 
-# https://reader.elsevier.com/reader/sd/20C9D54036F9EB702CD7F163E0D03823B6FF3F3A4F2E0EA1BB6E3C8B6895A65F26CDFC723FAF98BC736BF5C7B429580C
-# kmeans cluster features to determine similarity
+
+# Group features by cosine similarity only one from each group with .999 cosine similarity
+selected_feats = set(x_data.columns)
+
+while True:
+    # Loop to ensure all are removed, naive approach used for grouping
+    cos_threshold = .999
+    cos_matrix = pd.DataFrame(data=cosine_similarity(x_data.loc[:, selected_feats].transpose()),
+                              index=x_data.loc[:, selected_feats].columns,
+                              columns=x_data.loc[:, selected_feats].columns)
+    cos_matrix.loc[:, :] = np.tril(cos_matrix, k=-1)
+    already_in = set()  # Store columns
+    cos_result = []
+
+    # Loop through each column in the matrix
+    for col in cos_matrix:
+        # Return index where cosine matrix value is greater than threshold
+        cosine_similar = cos_matrix[col][np.abs(cos_matrix[col]) > cos_threshold].index.tolist()
+        if cosine_similar and col not in already_in:
+            cosine_similar.append(col)  # Combine column with other similar features
+            already_in.update(set(cosine_similar))
+            cos_result.append(cosine_similar)
+        elif col not in already_in:  # If only single feature, add to set (don't need the else with set)
+            already_in.update(set([col]))
+            cos_result.append([col])
+
+    all_feats = set(list(x_data.loc[:, selected_feats].columns))
+    selected_feats = set([feats[0] for feats in cos_result])
+    removed_feats = all_feats - selected_feats
+
+    print("all_feats %s" % len(all_feats))
+    print("selected_feats %s" % len(selected_feats))
+    print("removed_feats %s \n" % len(removed_feats))
+
+    if not removed_feats:
+        break
+
 
 
 kmeans = KMeans(n_clusters=int(x_data.shape[1] * .9), n_jobs=7)
 result = kmeans.fit_transform(x_data.transpose())
-from keras.utils import np_utils
 
-np_utils.to_categorical(np.argmax(result, axis=1))
 # TODO start here,!!!!!! reducing based on k-means
 # perform kmeans, then count how many in a group
 # rank removal with equal coef by number in similar group, then recalculate number in group
@@ -85,11 +155,6 @@ np_utils.to_categorical(np.argmax(result, axis=1))
 # Backward stepwise, count similarity groups by feature, sort by number in group and then
 # If only one feature in each group then lower cosine similarity threshold by .01
 # Iteratively remove only one feature at a time, update the feature lists, then remove the next
-cos_groups = dict([(feat, feat_list.copy()) for feat_list in cos_result for feat in feat_list])
-
-print(cos_groups.keys())
-
-len(cos_groups)
 
 # Sort by number in group
 
