@@ -1,13 +1,13 @@
 import pandas as pd
 import numpy as np
 from model_validation import ModelValidation
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.metrics import make_scorer, r2_score
 from sklearn.svm import LinearSVR
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy import spatial
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 
 # Load data
 df = pd.read_csv("data/Series3_6.15.17_padel.csv", index_col=0)
@@ -26,6 +26,7 @@ one_hot_df = pd.get_dummies(df[int_cols].astype('O'))
 df = pd.merge(df[float_cols], one_hot_df, left_index=True, right_index=True)
 # Split x, y
 y_data = df.pop("IC50")
+y_class = pd.Series(data=[int(y < 2.1) for y in y_data])
 x_data = df.copy()
 
 # Ensure no (+/-) inf or nan due to improper transformation
@@ -55,13 +56,15 @@ for feat in x_data.columns[x_data.dtypes == 'float64']:
 
 
 """
-1. Group normalized features with cosine similarity of >.99, select only one feature 
+1. Group normalized features with cosine similarity of >.999(tune), select only one feature 
 from groups of identical features
 2. Cluster remaining features using k-means (which from what I've read, euclidean distance 
-is a linear equivalent to cosine similarity, reference added below) into an arbitrary number of groups. 
+is a linear equivalent to cosine similarity, reference added below) into an arbitrary number of groups.
+(95% of feature space size)
 3. Use a model to extract feature importance and select a portion for removal, for the 
 group slated for removal those will be sorted by the number of features in their cluster, favoring 
-features that have the most features similar to them for final removal in that iteration. 
+features that have the most features similar to them for final removal in that iteration.
+* note clustering is done with all features, not just those for removal
 4. After a handful are removed, rerun the cluster analysis to reset the group numbers and continue 
 until 5% of the starting features are removed
 5. Repeat
@@ -74,43 +77,17 @@ y_scaler = StandardScaler()
 x_data.loc[:, :] = x_scaler.fit_transform(x_data)
 y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
 
-# Previous implementation:
-
-# cos_threshold = .999
-# cos_matrix = pd.DataFrame(data=cosine_similarity(x_data.transpose()),
-#                           index=x_data.columns, columns=x_data.columns)
-# cos_matrix.loc[:, :] = np.tril(cos_matrix, k=-1)
-#
-# already_in = set()
-# cos_result = []
-# for col in cos_matrix:
-#     cosine_similar = cos_matrix[col][np.abs(cos_matrix[col]) > cos_threshold].index.tolist()
-#     if cosine_similar and col not in already_in:
-#         already_in.update(set(cosine_similar))
-#         cosine_similar.append(col)
-#         cos_result.append(cosine_similar)
-#     elif col not in already_in:
-#         already_in.update(set([col]))
-#         cos_result.append([col])
-#
-#
-# len(cos_result)
-# x_data.shape
-#
-#
-# # Create loop to ensure all similar features represented only once
-#
-# all_feats = set(list(x_data.columns))
-# selected_feats = set([feats[0] for feats in cos_result])
-# removed_feats = all_feats - selected_feats
-
+# Establish benchmark
+model = LinearSVR(random_state=0, C=0.1)
+ModelValidation().score_regressor(x_data, y_data, model, pos_split=y_scaler.transform([[2.1]]))
+print("\n")
 
 # Group features by cosine similarity only one from each group with .999 cosine similarity
 selected_feats = set(x_data.columns)
 
 while True:
     # Loop to ensure all are removed, naive approach used for grouping
-    cos_threshold = .999
+    cos_threshold = .9999
     cos_matrix = pd.DataFrame(data=cosine_similarity(x_data.loc[:, selected_feats].transpose()),
                               index=x_data.loc[:, selected_feats].columns,
                               columns=x_data.loc[:, selected_feats].columns)
@@ -141,10 +118,99 @@ while True:
     if not removed_feats:
         break
 
+# Misc setup for loop
+best_C = .1
+
+for _ in range(10):
+
+    # Filter to only selected features
+    x_data = x_data.loc[:, selected_feats]
+
+    # Measure benchmark
+    print("Starting benchmark....")
+    model = LinearSVR(random_state=0, C=best_C)
+    ModelValidation().score_regressor(x_data, y_data, model, pos_split=y_scaler.transform([[2.1]]))
+    print("\n")
+
+    # Cluster remaining features using k-means
+    batch_size = int(len(selected_feats) / 25)
+    clusters = int(len(selected_feats) * .95)
+    kmeans = MiniBatchKMeans(n_clusters=clusters,
+                             batch_size=batch_size,
+                             init_size=3 * clusters)
+    kmeans.fit(x_data.transpose())
+
+    # Extract group label and get counts, store as label_counts dict
+    k, v = np.unique(kmeans.labels_, return_counts=True)
+    label_counts = dict(zip(k, v))
+    # Create array with total group counts for each label in the dataset
+    feat_group_count = np.array([label_counts[feat] for feat in kmeans.labels_])
+    # Normalize and reverse sign to align higher group-size and lower coef for scoring
+    feat_group_count_n = StandardScaler().fit_transform(feat_group_count.reshape(-1, 1)) * -1
+    feat_group_count_n = np.squeeze(feat_group_count_n)
+
+    # Use a model to extract feature importance and select a portion for removal
+
+    # Tune the model with - features
+    model = LinearSVR(random_state=0)
+
+    if best_C is not None:
+        # Allow C to drift through process, but restrict range for efficiency/fine-tune tradeoff
+        start_range = max(best_C * .8, 0)  # .8 lower, 1.3 upper to try to push C value up
+        stop_range = min(best_C * 1.3, 1)
+        params = {"C": np.arange(start_range, stop_range, (stop_range - start_range) / 10)}
+    else:
+        params = {"C": np.arange(.1, 1.1, .1)}
+
+    grid = GridSearchCV(model, param_grid=params, scoring=make_scorer(r2_score, greater_is_better=True), cv=10, n_jobs=7)
+    grid.fit(x_data.loc[:, selected_feats], y_data)
+
+    # Keep track of C for more efficient tuning
+
+    best_C = grid.best_params_["C"]
+
+    # create splits using stratified kfold
+    rskf = RepeatedStratifiedKFold(n_splits=sum(y_class), n_repeats=5, random_state=0)
+    # loop through splits
+    feature_importances = []
+    tracking_dict = dict()
+    tracking_dict["r2_score"] = []
+    tracking_dict["coefs"] = []
+    for train, test in rskf.split(x_data, y_class):
+        x_train, x_test = x_data.iloc[train, :], x_data.iloc[test, :]
+        y_train, y_test = y_data.iloc[train], y_data.iloc[test]
+        # train model, test model with all scoring parameters
+        model = LinearSVR(random_state=0, C=best_C)
+        model.fit(x_train, y_train)
+        y_ = model.predict(X=x_test)
+        # append scores to logging dictionary
+        tracking_dict["r2_score"].append(r2_score(y_test, y_))
+        tracking_dict["coefs"].append(model.coef_)
+
+    coef_array = np.array(tracking_dict["coefs"])
+    coef_array.shape
+
+    # Which columns have the highest absolute average value
+    coef_array = np.abs(coef_array)
+    coef_array = np.mean(coef_array, axis=0)
+    coef_array_n = StandardScaler().fit_transform(coef_array.reshape(-1, 1))
+    coef_array_n = np.squeeze(coef_array_n)
+
+    # 50/50 weight the importance and the cluster group values
+    assert len(feat_group_count_n) == len(coef_array_n), "uneven lengths"
+
+    score_array = feat_group_count_n * .5 + coef_array_n * .5
+
+    percentile_slicer = np.percentile(score_array, 5)
+    selected_feats = [feat for feat, imprnt in zip(x_data.columns, score_array) if imprnt > percentile_slicer]
+
+    # Print round summary
+    print("tuning r2 score: %s \n" % np.mean(tracking_dict["r2_score"]))
 
 
-kmeans = KMeans(n_clusters=int(x_data.shape[1] * .9), n_jobs=7)
-result = kmeans.fit_transform(x_data.transpose())
+print(len(selected_feats))
+# Final benchmark
+
 
 # TODO start here,!!!!!! reducing based on k-means
 # perform kmeans, then count how many in a group
