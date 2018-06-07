@@ -1,35 +1,32 @@
 import pandas as pd
 import numpy as np
-from model_validation import ModelValidation
 from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.metrics import make_scorer, r2_score
 from sklearn.svm import LinearSVR
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import MiniBatchKMeans
-
+from src.model_validation import ModelValidation
 
 # if __name__ == "__main__":
 # Load data
 print("loading data....")
-df = pd.read_csv("data/Series3_6.15.17_padel.csv", index_col=0)
+df = pd.read_csv("src/data/source_data/Series3_6.15.17_padel.csv", index_col=0)
 # Eliminate features without variance
 df = df.loc[:, (df.std() > 0).values]
-# Seperate Series 3 test when IC50 is null
-test_index = df.IC50.isnull()
-test_df = df.loc[test_index]
-df = df.loc[~test_index]
-# Remove columns with missing data
-df = df.dropna(axis=1)
-# Transform discrete with one-hot-encoding
-int_cols = df.columns[df.dtypes == 'int64']
-float_cols = df.columns[df.dtypes == 'float64']
-one_hot_df = pd.get_dummies(df[int_cols].astype('O'))
-df = pd.merge(df[float_cols], one_hot_df, left_index=True, right_index=True)
 # Split x, y
 y_data = df.pop("IC50")
-y_class = pd.Series(data=[int(y < 2.1) for y in y_data])
+# y_class = pd.Series(data=[int(y < 2.1) for y in y_data])
 x_data = df.copy()
+
+# Remove columns with missing data
+x_data = x_data.dropna(axis=1)
+
+# Transform discrete with one-hot-encoding
+int_cols = x_data.columns[x_data.dtypes == 'int64']
+float_cols = x_data.columns[x_data.dtypes == 'float64']
+one_hot_df = pd.get_dummies(x_data[int_cols].astype('O'))
+x_data = pd.merge(x_data[float_cols], one_hot_df, left_index=True, right_index=True)
 
 # Ensure no (+/-) inf or nan due to improper transformation
 x_data.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -57,6 +54,12 @@ for feat in x_data.columns[x_data.dtypes == 'float64']:
     if feature_df.max() < 1000:
         x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
 
+# Seperate Series 3 test when IC50 is null
+test_index = y_data.isnull()
+x_train = x_data.loc[~test_index].copy()
+y_train = y_data.loc[~test_index].copy()
+x_test = x_data.loc[test_index].copy()
+
 
 """
 1. Group normalized features with cosine similarity of >.999(tune), select only one feature 
@@ -77,8 +80,14 @@ until 5% of the starting features are removed
 x_scaler = StandardScaler()
 y_scaler = StandardScaler()
 
-x_data.loc[:, :] = x_scaler.fit_transform(x_data)
-y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
+
+x_train.loc[:, :] = x_scaler.fit_transform(x_train)
+x_test.loc[:, :] = x_scaler.transform(x_test)
+y_train.loc[:] = np.squeeze(y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
+
+# TODO START HERE!!
+# TODO feature engineering should probably output a list of features instead of including
+# todo it in the implementation pipeline... otherwise it could get too heavy. stepwise for example
 
 # Establish benchmark
 print("Establishing benchmark....")
@@ -92,7 +101,7 @@ print("Grouping highly correlated features....\n")
 while True:
     # Loop to ensure all are removed, naive approach used for grouping
 
-    corr_threshold = .95
+    corr_threshold = .99
     corr_matrix = x_data.corr()
     corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)  # borrowed from Karl D's answer
 
@@ -205,7 +214,7 @@ while True:
 
     score_array = feat_group_count_n * .5 + coef_array_n * .5
 
-    percentile_slicer = np.percentile(score_array, 1)
+    percentile_slicer = np.percentile(score_array, 5)
     selected_feats = [feat for feat, imprnt in zip(x_data.columns, score_array) if imprnt > percentile_slicer]
 
     # Print round summary
@@ -235,8 +244,8 @@ ModelValidation().score_regressor(x_data.loc[:, best_features], y_data, model,
                                   pos_split=y_scaler.transform([[2.1]]))
 
 
-# correlation threshold: .95, percentile 1
+# correlation threshold: .99, percentile 5
 # Final benchmark....
 # with 3 splits and 10 repeats
-# average r2_score: 0.1721241982834196
-# average rmse: 0.8733633435911139
+# average r2_score: 0.19215420413702972
+# average rmse: 0.8675296458146753
