@@ -86,13 +86,16 @@ x_test.loc[:, :] = x_scaler.transform(x_test)
 y_train.loc[:] = np.squeeze(y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
 
 # TODO START HERE!!
-# TODO feature engineering should probably output a list of features instead of including
-# todo it in the implementation pipeline... otherwise it could get too heavy. stepwise for example
+
+""" 
+@Note: feature engineering should probably output a list of features instead of including
+it in the implementation pipeline... otherwise it could get too heavy. stepwise for example
+"""
 
 # Establish benchmark
 print("Establishing benchmark....")
 model = LinearSVR(random_state=0, C=0.05)
-ModelValidation().score_regressor(x_data, y_data, model, pos_split=y_scaler.transform([[2.1]]))
+ModelValidation().score_regressor(x_train, y_train, model, pos_split=y_scaler.transform([[2.1]]))
 print("\n")
 
 # Group features by cosine similarity only one from each group with .999 cosine similarity
@@ -101,7 +104,7 @@ print("Grouping highly correlated features....\n")
 while True:
     # Loop to ensure all are removed, naive approach used for grouping
 
-    corr_threshold = .99
+    corr_threshold = .95
     corr_matrix = x_data.corr()
     corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)  # borrowed from Karl D's answer
 
@@ -129,12 +132,15 @@ while True:
         break
 
 # Filter to only selected features
-x_copy = x_data.loc[:, selected_feats]
+x_copy = x_train.loc[:, selected_feats]
 # Measure starting benchmark
 print("new benchmark....")
 model = LinearSVR(random_state=0, C=.05)
-benchmark = ModelValidation().score_regressor(x_copy, y_data, model, pos_split=y_scaler.transform([[2.1]]))
+benchmark = ModelValidation().score_regressor(x_copy, y_train, model, pos_split=y_scaler.transform([[2.1]]))
 print("\n")
+
+len(selected_feats)
+sel_array = np.array(selected_feats)
 
 # Misc setup for loop
 best_C = None

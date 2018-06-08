@@ -1,45 +1,43 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from src.data.data_abstract import DataAbstract
 
 
-class DataNonLinear:
+class DataNonLinear(DataAbstract):
 
     def __init__(self):
         # Load data from source_data folder
         self.train = pd.read_csv("src/data/source_data/Series3_6.15.17_padel.csv", index_col=0)
         self.test = None  # Missing IC50, Series3 examples
+        self.x_scaler = StandardScaler()
+        self.y_scaler = StandardScaler()
 
-    def clean_data(self, train):
+    @staticmethod
+    def clean_data(data):
         """ Clean data """
         # Eliminate features without variance
-        train = train.loc[:, (train.std() > 0).values]
-        # Seperate Series 3 test when IC50 is null
-        test_index = train.IC50.isnull()
-        x_test = train.loc[test_index]  # TODO implement
-        train = train.loc[~test_index]
-        # Remove columns with missing data
-        train = train.dropna(axis=1)
-        # Transform discrete with one-hot-encoding
-        int_cols = train.columns[train.dtypes == 'int64']
-        float_cols = train.columns[train.dtypes == 'float64']
-        one_hot_df = pd.get_dummies(train[int_cols].astype('O'))
-        train = pd.merge(train[float_cols], one_hot_df, left_index=True, right_index=True)
+        data = data.loc[:, (data.std() > 0).values]
         # Split x, y
-        y_train = train.pop("IC50")
+        y_data = data.pop("IC50")
         # y_class = pd.Series(data=[int(y < 2.1) for y in y_data])
-        x_train = train.copy()
+        x_data = data.copy()
+        # Remove columns with missing data
+        x_data = x_data.dropna(axis=1)
+        # Transform discrete with one-hot-encoding
+        int_cols = x_data.columns[x_data.dtypes == 'int64']
+        float_cols = x_data.columns[x_data.dtypes == 'float64']
+        one_hot_df = pd.get_dummies(x_data[int_cols].astype('O'))
+        x_data = pd.merge(x_data[float_cols], one_hot_df, left_index=True, right_index=True)
         # Ensure no (+/-) inf or nan due to improper transformation
-        x_train.replace([np.inf, -np.inf], np.nan, inplace=True)
-        assert not sum(x_train.isna().sum()), "Unexpected nulls found"  # TODO add to unit-tests
+        x_data.replace([np.inf, -np.inf], np.nan, inplace=True)
+        assert not sum(x_data.isna().sum()), "Unexpected nulls found"  # TODO add to unit-tests
         # TODO assert not isinfinite instead of only swapping here ^^
+        return x_data, y_data
 
-        return x_train, y_train, x_test
-
-    def engineer_features(self, x_train, x_test):
+    @staticmethod
+    def engineer_features(x_data):
         """Engineer features"""
-        # Combine train and test set
-        # x_data =
         # Perform feature engineering on float columns
         print("performing non-linear transformations....\n")
         for feat in x_data.columns[x_data.dtypes == 'float64']:
@@ -61,13 +59,17 @@ class DataNonLinear:
                     lambda x: np.power(x, 3))  # cube
             if feature_df.max() < 1000:
                 x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
+        return x_data
 
-    """Return train and test set ready for model"""
-    # Normalize
-    x_scaler = StandardScaler()
-    y_scaler = StandardScaler()
-
-    x_data.loc[:, :] = x_scaler.fit_transform(x_data)
-    y_data.loc[:] = np.squeeze(y_scaler.fit_transform(y_data.values.reshape(-1, 1)))
-
-
+    def test_train_split(self, x_data, y_data):
+        # Seperate Series 3 test when IC50 is null
+        test_index = y_data.isnull()
+        x_train = x_data.loc[~test_index].copy()
+        y_train = y_data.loc[~test_index].copy()
+        x_test = x_data.loc[test_index].copy()
+        """Return train and test set ready for model"""
+        # Normalize
+        x_train.loc[:, :] = self.x_scaler.fit_transform(x_train)
+        x_test.loc[:, :] = self.x_scaler.transform(x_test)
+        y_train.loc[:] = np.squeeze(self.y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
+        return x_train, x_test, y_train
