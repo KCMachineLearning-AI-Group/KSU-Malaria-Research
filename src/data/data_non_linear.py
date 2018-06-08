@@ -8,9 +8,8 @@ class DataNonLinear(DataAbstract):
 
     def __init__(self):
         # Load data from source_data folder
-        self.train = pd.read_csv("src/data/source_data/Series3_6.15.17_padel.csv", index_col=0)
-        self.test = None  # Missing IC50, Series3 examples
-        self.x_scaler = StandardScaler()
+        self.data = pd.read_csv("src/data/source_data/Series3_6.15.17_padel.csv", index_col=0)
+        self._x_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
 
     @staticmethod
@@ -69,7 +68,7 @@ class DataNonLinear(DataAbstract):
         x_test = x_data.loc[test_index].copy()
         """Return train and test set ready for model"""
         # Normalize
-        x_train.loc[:, :] = self.x_scaler.fit_transform(x_train)
-        x_test.loc[:, :] = self.x_scaler.transform(x_test)
+        x_train.loc[:, :] = self._x_scaler.fit_transform(x_train)
+        x_test.loc[:, :] = self._x_scaler.transform(x_test)
         y_train.loc[:] = np.squeeze(self.y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
         return x_train, x_test, y_train

@@ -1,7 +1,8 @@
-
-
-# TODO abstract class for data class
 from abc import ABC, abstractmethod
+
+"""
+Abstract class for all custom data classes (ex. data_non_linear.py)
+"""
 
 
 class DataAbstract(ABC):
@@ -30,4 +31,5 @@ class DataAbstract(ABC):
     def test_train_split(self, x_data, y_data):
         """Return train and test set ready for model"""
         # Scale/normalize
+        # return x_train, x_test, y_train
         raise NotImplementedError

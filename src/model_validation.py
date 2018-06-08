@@ -4,8 +4,10 @@ from sklearn.metrics import mean_squared_error, r2_score
 from numpy import sqrt, mean
 from pandas import DataFrame, Series
 
+from src.validation_abstract import ValidationAbstract
 
-class ModelValidation:
+
+class ModelValidation(ValidationAbstract):
 
     RANDOM_STATE = 36851234
     REPEATS = 10
