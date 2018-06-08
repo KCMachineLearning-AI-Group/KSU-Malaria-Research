@@ -85,8 +85,6 @@ x_train.loc[:, :] = x_scaler.fit_transform(x_train)
 x_test.loc[:, :] = x_scaler.transform(x_test)
 y_train.loc[:] = np.squeeze(y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
 
-# TODO START HERE!!
-
 """ 
 @Note: feature engineering should probably output a list of features instead of including
 it in the implementation pipeline... otherwise it could get too heavy. stepwise for example
