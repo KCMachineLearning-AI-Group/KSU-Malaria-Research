@@ -1,16 +1,11 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+
 from src.data.data_abstract import DataAbstract
 
 
 class DataNonLinear(DataAbstract):
-
-    def __init__(self):
-        # Load data from source_data folder
-        self.data = pd.read_csv("src/data/source_data/Series3_6.15.17_padel.csv", index_col=0)
-        self._x_scaler = StandardScaler()
-        self.y_scaler = StandardScaler()
 
     @staticmethod
     def clean_data(data):
@@ -31,7 +26,6 @@ class DataNonLinear(DataAbstract):
         # Ensure no (+/-) inf or nan due to improper transformation
         x_data.replace([np.inf, -np.inf], np.nan, inplace=True)
         assert not sum(x_data.isna().sum()), "Unexpected nulls found"  # TODO add to unit-tests
-        # TODO assert not isinfinite instead of only swapping here ^^
         return x_data, y_data
 
     @staticmethod
@@ -60,7 +54,11 @@ class DataNonLinear(DataAbstract):
                 x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
         return x_data
 
-    def test_train_split(self, x_data, y_data):
+    @staticmethod
+    def test_train_split(x_data, y_data):
+        # Create scaler objects
+        x_scaler = StandardScaler()
+        y_scaler = StandardScaler()
         # Seperate Series 3 test when IC50 is null
         test_index = y_data.isnull()
         x_train = x_data.loc[~test_index].copy()
@@ -68,7 +66,7 @@ class DataNonLinear(DataAbstract):
         x_test = x_data.loc[test_index].copy()
         """Return train and test set ready for model"""
         # Normalize
-        x_train.loc[:, :] = self._x_scaler.fit_transform(x_train)
-        x_test.loc[:, :] = self._x_scaler.transform(x_test)
-        y_train.loc[:] = np.squeeze(self.y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
-        return x_train, x_test, y_train
+        x_train.loc[:, :] = x_scaler.fit_transform(x_train)
+        x_test.loc[:, :] = x_scaler.transform(x_test)
+        y_train.loc[:] = np.squeeze(y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
+        return x_train, x_test, y_train, y_scaler

@@ -1,19 +1,28 @@
 from abc import ABC, abstractmethod
-# TODO finish adding documentation below, then fill out templates
+import pandas as pd
+from sklearn.base import BaseEstimator
+
+"""
+Standardized ModelAbstract for KSU project. 
+Changes to this class can take place after group discussion to discover dependency 
+impacts, otherwise override methods in the model classes as needed.
+"""
 
 
 class ModelAbstract(ABC):
 
     def __init__(self):
-        self.data_object = None  # TODO Override this with your data class
-        self.selected_features = []  # TODO set this dynamically with feature_selection to allow for analysis
-
+        self.data_object = None  # Override this with your data class
+        self.selected_features = []  # Set this dynamically with feature_selection to allow for analysis
+        self.y_scaler = None  # Set in get_data function, used for inverse transform of test prediction
     """ 
-    Non-Abstract, Inherited Methods: These should be the same for everyone
+    Non-Abstract, Inherited Methods: Override if necessary
     """
 
-    def get_data(self):
+    def get_data(self) -> (pd.DataFrame, pd.DataFrame, pd.Series):
         """
+        Override in your class if necessary
+        This method runs the data processing functions standard in the data classes
         Steps:
           * Clean data (data_object.clean_data)
           * Engineer features (data_object.engineer_features)
@@ -22,23 +31,34 @@ class ModelAbstract(ABC):
         """
         x_data, y_data = self.data_object.clean_data(self.data_object.data)
         x_data = self.data_object.engineer_features(x_data)
-        x_train, x_test, y_train = self.data_object.test_train_split(x_data, y_data)
+        x_train, x_test, y_train, y_scaler = self.data_object.test_train_split(x_data, y_data)
         return x_train, x_test, y_train
 
-    def get_test_prediction(self):
-        x_train, x_test, y_train, model = self.get_validation_support()
-        model.fit(x_train, y_train)
-        return model.predict(x_test)
-
-    """ Abstract Methods """
-    @abstractmethod
-    def get_validation_support(self):
+    def get_validation_support(self) -> (pd.DataFrame, pd.DataFrame, pd.Series, BaseEstimator):
         """
         Use output for leaderboard scoring
         :return: x_train, x_test, y_train, model
         """
-        x_train, x_test, y_train, model = None, None, None, None
-        return x_train, x_test, y_train, model
+        x_data, y_data = self.data_object.clean_data(self.data_object.data)
+        self.selected_features = self.select_features(x_data)
+        x_data = x_data.loc[:, self.selected_features].copy()
+        x_train, x_test, y_train, y_scaler = self.data_object.test_train_split(x_data, y_data)
+        model = self.choose_model(x_train, y_train)
+        return x_train, x_test, y_train, y_scaler, model
+
+    def get_test_prediction(self):
+        """
+        Override in your class if necessary
+        :return: prediction result
+        """
+        x_train, x_test, y_train, y_scaler, model = self.get_validation_support()
+        model.fit(x_train, y_train)
+        prediction = model.predict(x_test)
+        return y_scaler.inverse_transform(prediction)
+
+    """ 
+    Abstract Methods, these must be overriden
+    """
 
     @staticmethod
     @abstractmethod

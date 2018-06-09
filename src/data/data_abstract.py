@@ -1,47 +1,30 @@
+import pandas as pd
 from abc import ABC, abstractmethod
 
+
 """
-Abstract class for all custom data classes (ex. data_non_linear.py)
+Standardized DataAbstract for KSU project. 
+Changes to this class can take place after group discussion to discover dependency 
+impacts, otherwise override methods in the model classes as needed.
 """
 
 
 class DataAbstract(ABC):
+    def __init__(self):
+        # Load data from source_data folder
+        self.data = pd.read_csv("src/data/source_data/Series3_6.15.17_padel.csv", index_col=0)
 
-    @staticmethod
+    @staticmethod  # staticmethod to allow easier sharing
     @abstractmethod
     def clean_data(data):
-        """
-        Example implementation steps:
-          * Clean data
-          * Split x, y
-          * Remove/impute missing data (may need separate method if complex)
-          * one-hot-encoding if applicable
-          * Check for missing values
-        :param data: raw data from source_data folder, static to allow sharing
-        :return: x_data, y_data
-        """
         return
 
-    @staticmethod
+    @staticmethod  # staticmethod to allow easier sharing
     @abstractmethod
     def engineer_features(x_data):
-        """
-        Example implementation steps:
-          * Perform feature engineering
-          * Check for unexpected values
-        :param x_data:
-        :return: return x_data with new features
-        """
         return
 
+    @staticmethod  # staticmethod to allow easier sharing
     @abstractmethod
-    def test_train_split(self, x_data, y_data):
-        """
-        Example implementation steps:
-          * Scale/normalize
-          * Split train/test based on missing target variables
-        :param x_data:
-        :param y_data:
-        :return: x_train, x_test, y_train
-        """
+    def test_train_split(x_data, y_data):
         return

@@ -11,17 +11,14 @@ class ModelCorrelationGrouper(ModelAbstract):
         self.data_object = DataNonLinear()
         self.selected_features = []
 
-    def get_validation_support(self) -> tuple:
-        x_data, y_data = self.data_object.clean_data(self.data_object.data)
-        self.selected_features = self.select_features(x_data)
-        x_data = x_data.loc[:, self.selected_features].copy()
-        x_train, x_test, y_train = self.data_object.test_train_split(x_data, y_data)
-        model = self.choose_model(x_train, y_train)
-        return x_train, x_test, y_train, model
-
     @staticmethod
-    def select_features(x_data) -> set:
-        # Group features by correlation, select 1 from each group randomly
+    def select_features(x_data):
+        """
+        Group features that are highly correlated based on a threshold correlation level.
+        Select the (arbitrary) first feature from each group
+        :param x_data:
+        :return: set of selected feature names
+        """
         corr_threshold = .95
         corr_matrix = x_data.corr()
         corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
@@ -44,5 +41,12 @@ class ModelCorrelationGrouper(ModelAbstract):
 
     @staticmethod
     def choose_model(x_train, y_train):
+        """
+        * Linear Support Vector Regressor
+        * C=.05 was most frequently optimal in tuning with CV10 (see ______.ipynb)
+        :param x_train:
+        :param y_train:
+        :return: sklearn LinearSVR model, training is not necessary as it is overriden
+        """
         model = LinearSVR(random_state=0, C=.05)
         return model
