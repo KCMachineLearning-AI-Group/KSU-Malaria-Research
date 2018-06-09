@@ -1,0 +1,6 @@
+requests[security]
+cookiecutter
+scipy
+numpy
+scikit-learn
+pandas

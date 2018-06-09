@@ -1,11 +1,14 @@
 # Custom
 *.idea
+example_data.csv
+working.py
 *.csv
 *.pkl
 *.pickle
 !data/example_x.csv
 !data/example_y.csv
-!data/Series3_6.115.17_padel.csv
+!src/data/source_data/Series3_6.15.17_padel.csv
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
