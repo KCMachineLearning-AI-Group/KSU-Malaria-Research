@@ -1,6 +1,4 @@
 from abc import ABC, abstractmethod
-import pandas as pd
-from sklearn.base import BaseEstimator
 
 """
 Standardized ModelAbstract for KSU project. 
@@ -19,24 +17,9 @@ class ModelAbstract(ABC):
     Non-Abstract, Inherited Methods: Override if necessary
     """
 
-    def get_data(self) -> (pd.DataFrame, pd.DataFrame, pd.Series):
+    def get_validation_support(self):
         """
-        Override in your class if necessary
-        This method runs the data processing functions standard in the data classes
-        Steps:
-          * Clean data (data_object.clean_data)
-          * Engineer features (data_object.engineer_features)
-          * Train/test split (normalize)
-        :return: x_train, x_test, y_train
-        """
-        x_data, y_data = self.data_object.clean_data(self.data_object.data)
-        x_data = self.data_object.engineer_features(x_data)
-        x_train, x_test, y_train, y_scaler = self.data_object.test_train_split(x_data, y_data)
-        return x_train, x_test, y_train
-
-    def get_validation_support(self) -> (pd.DataFrame, pd.DataFrame, pd.Series, BaseEstimator):
-        """
-        Use output for leaderboard scoring
+        Output is used for leaderboard scoring
         :return: x_train, x_test, y_train, model
         """
         x_data, y_data = self.data_object.clean_data(self.data_object.data)
