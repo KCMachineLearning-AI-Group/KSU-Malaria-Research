@@ -117,3 +117,6 @@ venv.bak/
 
 # Cached Data
 src/data/cached_data/*
+
+# DS_Store files
+*.DS_Store

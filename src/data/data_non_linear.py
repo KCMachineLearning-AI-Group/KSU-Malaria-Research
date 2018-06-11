@@ -29,7 +29,7 @@ class DataNonLinear(DataAbstract):
         return x_data, y_data
 
     @staticmethod
-    def engineer_features(x_data):
+    def engineer_features(x_data, y_data=None):
         """Engineer features"""
         # Perform feature engineering on float columns
         print("performing non-linear transformations....\n")

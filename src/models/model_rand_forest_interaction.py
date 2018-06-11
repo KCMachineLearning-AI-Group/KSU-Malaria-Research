@@ -1,4 +1,4 @@
-from sklearn.svm import LinearSVR
+from sklearn.linear_model import Ridge
 
 from src.models.model_abstract import ModelAbstract
 from src.data.data_interactions import DataInteractions
@@ -12,11 +12,11 @@ TODO's
 """
 
 
-class RegInteractionModel(ModelAbstract):
+class ModelRandForestInteraction(ModelAbstract):
 
     def __init__(self):
         ModelAbstract.__init__(self)
-        self.data_object = DataNonLinear()  # TODO use your own data class or steal
+        self.data_object = DataInteractions()
         self.selected_features = []
 
     @staticmethod
@@ -45,5 +45,16 @@ class RegInteractionModel(ModelAbstract):
         """
 
         # TODO Implement custom model selection, use additional methods if necessary
-        model = LinearSVR(random_state=0)
+        model = Ridge(alpha=10.0, random_state=8943)
+        model.fit(x_train, y_train)
         return model
+
+    def get_test_prediction(self):
+        """
+        Override in your class if necessary
+        :return: prediction result
+        """
+        x_train, x_test, y_train, y_scaler, model = self.get_validation_support()
+        model.fit(x_train, y_train)
+        prediction = model.predict(x_test)
+        return y_scaler.inverse_transform(prediction.reshape(-1,1)).reshape(1,-1)[0]
