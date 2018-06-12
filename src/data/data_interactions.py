@@ -1,7 +1,7 @@
 from src.data.lib.interactions import InteractionChecker
 from src.data.data_abstract import DataAbstract
 from src.data.data_non_linear import DataNonLinear
-from sklearn.preprocessing import MinMaxScaler
+from src.data.lib.dummy_scaler import DummyScaler
 import pandas as pd
 from numpy import squeeze
 
@@ -48,15 +48,11 @@ class DataInteractions(DataAbstract):
         :param y_data:
         :return: x_train, x_test, y_train
         """
-        y_scaler = MinMaxScaler()
-        x_scaler = MinMaxScaler()
 
         test_index = y_data.isnull()
         x_train = x_data.loc[~test_index].copy()
         y_train = y_data.loc[~test_index].copy()
         x_test = x_data.loc[test_index].copy()
 
-        x_train.loc[:, :] = x_scaler.fit_transform(x_train)
-        x_test.loc[:, :] = x_scaler.transform(x_test)
-        y_train.loc[:] = squeeze(y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
+        y_scaler = DummyScaler()
         return x_train, x_test, y_train, y_scaler

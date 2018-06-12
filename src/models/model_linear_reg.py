@@ -1,4 +1,4 @@
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import LinearRegression
 
 from src.models.model_abstract import ModelAbstract
 from src.data.data_interactions import DataInteractions
@@ -12,7 +12,7 @@ TODO's
 """
 
 
-class ModelRandForestInteraction(ModelAbstract):
+class ModelLinearReg(ModelAbstract):
 
     def __init__(self):
         ModelAbstract.__init__(self)
@@ -30,7 +30,7 @@ class ModelRandForestInteraction(ModelAbstract):
         """
 
         # TODO Implement custom feature selection algorithm, use additional methods if necessary
-        selected_feats = set(x_data.columns)
+        selected_features = set(x_data.columns)
         return selected_feats
 
     @staticmethod
@@ -45,16 +45,15 @@ class ModelRandForestInteraction(ModelAbstract):
         """
 
         # TODO Implement custom model selection, use additional methods if necessary
-        model = Ridge(alpha=10.0, random_state=8943)
+        model = LinearRegression()
         model.fit(x_train, y_train)
         return model
 
-    def get_test_prediction(self):
+    def get_validation_support(self):
         """
-        Override in your class if necessary
-        :return: prediction result
+        Output is used for leaderboard scoring
+        :return: x_train, x_test, y_train, model
         """
-        x_train, x_test, y_train, y_scaler, model = self.get_validation_support()
-        model.fit(x_train, y_train)
-        prediction = model.predict(x_test)
-        return y_scaler.inverse_transform(prediction.reshape(-1,1)).reshape(1,-1)[0]
+        x_train, x_test, y_train, y_scaler = self.data_object.load_data()
+        model = self.choose_model(x_train, y_train)
+        return x_train, x_test, y_train, y_scaler, model

@@ -1,6 +1,6 @@
 from src.models.model_template import ModelMyModel
 from src.models.model_correlation_grouper import ModelCorrelationGrouper
-from src.models.model_rand_forest_interaction import ModelRandForestInteraction
+from src.models.model_linear_reg import ModelLinearReg
 from src.model_validation import ModelValidation
 
 """
@@ -14,9 +14,9 @@ command line with `python leaderboard.py` from the project root.
 validation = ModelValidation()
 
 leaderboard_regressors = [
-    #ModelMyModel(),
-    #ModelCorrelationGrouper(),
-    ModelRandForestInteraction()
+    ModelMyModel(),
+    ModelCorrelationGrouper(),
+    ModelLinearReg()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []
