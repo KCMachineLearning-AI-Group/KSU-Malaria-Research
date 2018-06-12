@@ -14,8 +14,8 @@ command line with `python leaderboard.py` from the project root.
 validation = ModelValidation()
 
 leaderboard_regressors = [
-    ModelMyModel(),
-    ModelCorrelationGrouper(),
+    #ModelMyModel(),
+    #ModelCorrelationGrouper(),
     ModelLinearReg()
     # TODO add additional regression implementations
 ]
