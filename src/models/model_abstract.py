@@ -23,6 +23,8 @@ class ModelAbstract(ABC):
         :return: x_train, x_test, y_train, model
         """
         x_train, x_test, y_train, y_scaler = self.data_object.load_data()
+        self.selected_features = self.select_features(x_train)
+        x_train = x_train.loc[:, self.selected_features].copy()
         model = self.choose_model(x_train, y_train)
         return x_train, x_test, y_train, y_scaler, model
 
@@ -32,6 +34,8 @@ class ModelAbstract(ABC):
         :return: prediction result
         """
         x_train, x_test, y_train, y_scaler, model = self.get_validation_support()
+        self.selected_features = self.select_features(x_train)
+        x_train = x_train.loc[:, self.selected_features].copy()
         model.fit(x_train, y_train)
         prediction = model.predict(x_test)
         return y_scaler.inverse_transform(prediction)

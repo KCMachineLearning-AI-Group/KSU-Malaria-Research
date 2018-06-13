@@ -31,7 +31,7 @@ class ModelLinearReg(ModelAbstract):
 
         # TODO Implement custom feature selection algorithm, use additional methods if necessary
         selected_features = set(x_data.columns)
-        return selected_feats
+        return selected_features
 
     @staticmethod
     def choose_model(x_train, y_train):

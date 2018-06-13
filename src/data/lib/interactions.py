@@ -3,7 +3,8 @@ from sklearn.feature_selection import f_regression
 from multiprocessing import Pool
 from pandas import DataFrame
 
-class InteractionChecker():
+
+class InteractionChecker:
     def __init__(self, alpha=0.05):
         """
         Instantiates InteractionChecker

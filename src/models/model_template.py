@@ -1,7 +1,7 @@
 from sklearn.svm import LinearSVR
 
 from src.models.model_abstract import ModelAbstract
-from src.data.data_non_linear import DataNonLinear
+from src.data.data_template import DataMyData
 
 """
 Template for model classes in the KSU project.
@@ -16,7 +16,7 @@ class ModelMyModel(ModelAbstract):
 
     def __init__(self):
         ModelAbstract.__init__(self)
-        self.data_object = DataNonLinear()  # TODO use your own data class or steal
+        self.data_object = DataMyData()  # TODO use your own data class or steal
         self.selected_features = []
 
     @staticmethod

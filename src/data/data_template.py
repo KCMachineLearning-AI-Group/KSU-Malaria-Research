@@ -10,6 +10,9 @@ Template for data classes in the KSU project.
 
 
 class DataMyData(DataAbstract):
+    def __init__(self):
+        self.cache_filename = "data_my_data"  # Optional, swap None with a string for caching capabilities
+        DataAbstract.__init__(self, self.cache_filename)
 
     @staticmethod
     def clean_data(data):
@@ -29,12 +32,13 @@ class DataMyData(DataAbstract):
         return x_data, y_data
 
     @staticmethod
-    def engineer_features(x_data):
+    def engineer_features(x_data, y_data=None):
         """
         Example implementation steps:
           * Perform feature engineering (use additional methods as needed, or static file)
           * Check for unexpected values
         :param x_data:
+        :param y_data:
         :return: return x_data with new features
         """
 
