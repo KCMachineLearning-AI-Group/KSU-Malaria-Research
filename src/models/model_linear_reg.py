@@ -16,7 +16,7 @@ class ModelLinearReg(ModelAbstract):
 
     def __init__(self):
         ModelAbstract.__init__(self)
-        self.data_object = DataInteractions()
+        self.data_object = DataInteractions("data_interactions")
         self.selected_features = []
 
     @staticmethod

@@ -6,9 +6,6 @@ import pandas as pd
 
 
 class DataInteractions(DataAbstract):
-    def __init__(self):
-        self.cache_filename = "data_interactions"
-        DataAbstract.__init__(self)
 
     @staticmethod
     def clean_data(data):

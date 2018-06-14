@@ -2,6 +2,7 @@ from numpy import concatenate, nan, ndarray, append, array, std
 from sklearn.feature_selection import f_regression
 from multiprocessing import Pool
 from pandas import DataFrame
+import os
 
 
 class InteractionChecker:
@@ -39,7 +40,7 @@ class InteractionChecker:
         self.int_list  = [(a, b) for a in self.prange for b in self.prange if a < b]
         # Test all potential interactions
         if mp:
-            with Pool() as pool:
+            with Pool(processes=os.cpu_count() - 1) as pool:
                 self.interactions =  pool.map(self.test_interaction,self.int_list)
         else:
             self.interactions =  [self.test_interaction(i) for i in self.int_list]
