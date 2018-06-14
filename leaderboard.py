@@ -1,5 +1,6 @@
 from src.models.model_template import ModelMyModel
 from src.models.model_correlation_grouper import ModelCorrelationGrouper
+from src.models.model_support_vector_regressor import ModelSupportVectorRegressor
 from src.model_validation import ModelValidation
 
 """
@@ -13,8 +14,9 @@ command line with `python leaderboard.py` from the project root.
 validation = ModelValidation()
 
 leaderboard_regressors = [
-    ModelMyModel(),
-    ModelCorrelationGrouper(),
+    #ModelMyModel(),
+    #ModelCorrelationGrouper(),
+    ModelSupportVectorRegressor()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []
