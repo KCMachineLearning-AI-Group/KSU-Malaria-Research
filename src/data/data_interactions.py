@@ -1,7 +1,7 @@
-from src.data.lib.interactions import InteractionChecker
+from src.data.util.interactions import InteractionChecker
 from src.data.data_abstract import DataAbstract
 from src.data.data_non_linear import DataNonLinear
-from src.data.lib.dummy_scaler import DummyScaler
+from src.data.util.dummy_scaler import DummyScaler
 import pandas as pd
 
 

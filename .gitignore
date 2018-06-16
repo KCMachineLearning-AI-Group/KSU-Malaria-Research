@@ -8,7 +8,6 @@ working.py
 !data/example_x.csv
 !data/example_y.csv
 !src/data/source_data/Series3_6.15.17_padel.csv
-!src/data/lib/
 src/data/cached_data/*
 !src/data/cached_data/.gitkeep
 
