@@ -16,7 +16,7 @@ class ModelLinearReg(ModelAbstract):
 
     def __init__(self):
         ModelAbstract.__init__(self)
-        self.data_object = DataInteractions()
+        self.data_object = DataInteractions("data_interactions")
         self.selected_features = []
 
     @staticmethod
@@ -31,7 +31,7 @@ class ModelLinearReg(ModelAbstract):
 
         # TODO Implement custom feature selection algorithm, use additional methods if necessary
         selected_features = set(x_data.columns)
-        return selected_feats
+        return selected_features
 
     @staticmethod
     def choose_model(x_train, y_train):

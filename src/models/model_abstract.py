@@ -23,6 +23,10 @@ class ModelAbstract(ABC):
         :return: x_train, x_test, y_train, model
         """
         x_train, x_test, y_train, y_scaler = self.data_object.load_data()
+        # Select features and filter x_train, x_test
+        self.selected_features = self.select_features(x_train)
+        x_train = x_train.loc[:, self.selected_features].copy()
+        x_test = x_test.loc[:, self.selected_features].copy()
         model = self.choose_model(x_train, y_train)
         return x_train, x_test, y_train, y_scaler, model
 

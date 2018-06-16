@@ -3,12 +3,9 @@ from src.data.data_abstract import DataAbstract
 from src.data.data_non_linear import DataNonLinear
 from src.data.lib.dummy_scaler import DummyScaler
 import pandas as pd
-from numpy import squeeze
+
 
 class DataInteractions(DataAbstract):
-    def __init__(self):
-        DataAbstract.__init__(self)
-        self.cache = True
 
     @staticmethod
     def clean_data(data):
@@ -30,14 +27,15 @@ class DataInteractions(DataAbstract):
           * Perform feature engineering (use additional methods as needed, or static file)
           * Check for unexpected values
         :param x_data:
+        :param y_data:
         :return: return x_data with new features
         """
-        print("Finding interactions....")
+        print("finding interactions....")
         ic = InteractionChecker(alpha=0.01)
         ic.fit(x_data[~y_data.isna()].fillna(0), y_data[~y_data.isna()])
         interactions = ic.transform(x_data.fillna(0))
-        transformations = DataNonLinear().engineer_features(x_data.fillna(0))
-        return pd.concat([transformations,interactions],axis=1)
+        transformations = DataNonLinear.engineer_features(x_data.fillna(0))
+        return pd.concat([transformations, interactions], axis=1)
 
     @staticmethod
     def test_train_split(x_data, y_data):
