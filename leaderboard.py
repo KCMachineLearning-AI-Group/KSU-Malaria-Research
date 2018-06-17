@@ -1,6 +1,7 @@
 from src.models.model_template import ModelMyModel
 from src.models.model_correlation_grouper import ModelCorrelationGrouper
 from src.models.model_linear_reg import ModelLinearReg
+from src.models.model_sgd_regression import ModelSGDRegressor
 from src.model_validation import ModelValidation
 import numpy as np
 np.set_printoptions(suppress=True)
@@ -18,7 +19,8 @@ validation = ModelValidation()
 leaderboard_regressors = [
     ModelMyModel(),
     ModelCorrelationGrouper(),
-    ModelLinearReg()
+    ModelLinearReg(),
+    ModelSGDRegressor(),
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []
