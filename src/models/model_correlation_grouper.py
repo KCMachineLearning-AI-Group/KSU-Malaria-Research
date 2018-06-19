@@ -8,7 +8,7 @@ class ModelCorrelationGrouper(ModelAbstract):
 
     def __init__(self):
         ModelAbstract.__init__(self)
-        self.data_object = DataNonLinear()
+        self.data_object = DataNonLinear("model_corr_grouper")
         self.selected_features = []
 
     @staticmethod
