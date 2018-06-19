@@ -48,29 +48,14 @@ class ModelSGDRegressor(ModelAbstract):
         Workflow
         * Add SelectKBest to pipeline select from the top X PCA components
         * Add SGDRegressor to pipeline as a model to fit the data
-        * Do a GridSearch using the pipeline and params
         """
-        k_range = [10,20]
-        alpha_range = np.linspace(0,1,25)
-        max_iter = [10]
-        l1_ratio = [0.0]
-        #loss = ['squared_loss', 'huber', 'epsilon_insensitive','squared_epsilon_insensitive']
-        loss =['huber']
-        penalty = ['l1']
 
-        pipeline = Pipeline(steps=[
-            ('select', SelectKBest(VarianceScorer.score)),
+
+        model = Pipeline(steps=[
+            ('select', SelectKBest(VarianceScorer.score, k=5)),
             ('regress', SGDRegressor(random_state=0))
         ])
-        params = {
-            'select__k': k_range,
-            'regress__loss': loss,
-            'regress__penalty': ['l1'],
-            'regress__alpha': alpha_range,
-            'regress__l1_ratio': l1_ratio,
-            'regress__max_iter': max_iter
-        }
 
-        model = GridSearchCV(estimator=pipeline, param_grid=params,
-                    scoring='r2', n_jobs=7)
+        model.set_params(select__k=5, regress__loss='huber', regress__penalty='l1', regress__alpha=0.15, regress__l1_ratio=0.30, regress__max_iter=10)
+
         return model
