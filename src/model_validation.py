@@ -12,11 +12,10 @@ class ModelValidation(ValidationAbstract):
     RANDOM_STATE = 36851234
     REPEATS = 10
 
-    @staticmethod
-    def get_cv(x_data, y_data, n_repeats, random_state, pos_split=10):
+    def get_cv(self, x_data, y_data, pos_split=10):
         """
         Standardized splits to use for validation.
-        Reason for static: May also be useful for GridSearchCV in model classes, use result as argument to cv.
+        May also be useful for GridSearchCV in model classes, use result as argument to cv.
         :param x_data: Pandas DataFrame object
         :param y_data: Pandas DataFrame or Series object, assumes floats (for regression)
         :param n_repeats: Number of times RepeatedStratifiedKFold repeats
@@ -29,7 +28,7 @@ class ModelValidation(ValidationAbstract):
         # num_splits count number of positive examples
         num_splits = sum(y_class.values)
         # create splits using stratified kfold
-        rskf = RepeatedStratifiedKFold(n_splits=num_splits, n_repeats=n_repeats, random_state=random_state)
+        rskf = RepeatedStratifiedKFold(n_splits=num_splits, n_repeats=self.REPEATS, random_state=self.RANDOM_STATE)
         # loop through splits
         cv = [(train, test) for train, test in rskf.split(x_data, y_class)]
         return cv
@@ -56,7 +55,7 @@ class ModelValidation(ValidationAbstract):
         # create logging dictionary to track scores
         scoring_dict = {"r2_score": [], "rmse": []}
         # loop through splits
-        for train, test in self.get_cv(x_data, y_data, self.REPEATS, self.RANDOM_STATE, pos_split=pos_split):
+        for train, test in self.get_cv(x_data, y_data, pos_split=pos_split):
             x_train, x_test = x_data.iloc[train, :], x_data.iloc[test, :]
             y_train, y_test = y_data.iloc[train], y_data.iloc[test]
             # train model, test model with all scoring parameters
