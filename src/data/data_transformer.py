@@ -39,7 +39,7 @@ class DataTransformation(DataAbstract):
                                                 "kmeans"], 
                                                params={"pca__percent_variance":0.95
                                                        "kmeans__n_clusters":2})
-        return x_data
+        return formed
 
     @staticmethod
     def test_train_split(x_data, y_data):
