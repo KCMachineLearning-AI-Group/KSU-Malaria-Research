@@ -1,5 +1,5 @@
 from sklearn.svm import SVR
-
+import pickle
 from src.models.model_abstract import ModelAbstract
 from src.data.data_interactions import DataInteractions
 
