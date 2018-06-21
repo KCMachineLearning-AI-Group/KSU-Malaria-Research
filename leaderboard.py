@@ -3,6 +3,7 @@ from src.models.model_correlation_grouper import ModelCorrelationGrouper
 from src.models.model_linear_reg import ModelLinearReg
 from src.models.model_sgd_regression import ModelSGDRegressor
 from src.models.model_mixed_stepwise import ModelMixedStepwise
+from src.models.model_linear_svr import ModelLinearSVR
 from src.model_validation import ModelValidation
 import numpy as np
 np.set_printoptions(suppress=True)
@@ -22,6 +23,7 @@ leaderboard_regressors = [
     ModelMixedStepwise(),
     ModelLinearReg(),
     ModelSGDRegressor(),
+    ModelLinearSVR()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []

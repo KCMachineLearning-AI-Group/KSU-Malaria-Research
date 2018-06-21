@@ -32,7 +32,7 @@ class DataDimensionReduction(DataAbstract):
         x_scaler = StandardScaler()
         x_data = x_scaler.fit_transform(x_data)
         print("performing dimension reduction using PCA....\n")
-        reduce_dim = PCA(n_components=350)
+        reduce_dim = PCA(n_components=100)
         x_data_pca = reduce_dim.fit_transform(x_data)
 
         return pd.DataFrame(data = x_data_pca)
