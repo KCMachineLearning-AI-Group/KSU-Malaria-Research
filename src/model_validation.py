@@ -1,6 +1,7 @@
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import log_loss, roc_auc_score, confusion_matrix, classification_report
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import r2_score, explained_variance_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, median_absolute_error
 from numpy import sqrt, mean
 from pandas import DataFrame, Series
 
@@ -33,13 +34,14 @@ class ModelValidation(ValidationAbstract):
         cv = [(train, test) for train, test in rskf.split(x_data, y_class)]
         return cv
 
-    def score_regressor(self, x_data, y_data, model, add_train_data=None, verbose=1, pos_split=10):
+    def score_regressor(self, x_data, y_data, model, y_scaler, add_train_data=None, verbose=1, pos_split=10):
         """
         Model validation for producing comparable model evaluation. Uses Stratified K-Fold LOOCV adapted
         for regression with the positive equivalent <10 IC50, producing 5 folds.
         :param x_data: Pandas DataFrame object, Series 3 with 47 examples
         :param y_data: Pandas DataFrame or Series object, float datatype, target variables for Series 3
         :param model: must have fit and predict method, use sklearn or wrapper
+        :param y_scaler: Scaler that was fitted on the original target values
         :param add_train_data: Additional data to be evenly spread across train splits
         :param verbose: If 0, return dictionary only, if 1 printed results
         :param pos_split: cutoff for positive class in StratifiedKFold (y<pos_split)
@@ -53,7 +55,8 @@ class ModelValidation(ValidationAbstract):
             raise NotImplementedError
 
         # create logging dictionary to track scores
-        scoring_dict = {"r2_score": [], "rmse": []}
+        scoring_dict = {"r2_score": [], "root_mean_sq_error": [], "explained_variance": [],
+                        "mean_sq_error": [], "mean_ae": [], "median_ae": []}
         # loop through splits
         for train, test in self.get_cv(x_data, y_data, pos_split=pos_split):
             x_train, x_test = x_data.iloc[train, :], x_data.iloc[test, :]
@@ -61,9 +64,15 @@ class ModelValidation(ValidationAbstract):
             # train model, test model with all scoring parameters
             model.fit(x_train, y_train)
             y_ = model.predict(x_test)
+            y_ = y_scaler.inverse_transform(y_)
+            y_test = y_scaler.inverse_transform(y_test)
             # append scores to logging dictionary
+            scoring_dict["explained_variance"].append(explained_variance_score(y_test, y_))
             scoring_dict["r2_score"].append(r2_score(y_test, y_))
-            scoring_dict["rmse"].append(sqrt(mean_squared_error(y_test, y_)))
+            scoring_dict["root_mean_sq_error"].append(sqrt(mean_squared_error(y_test, y_)))
+            scoring_dict["mean_sq_error"].append(mean_squared_error(y_test, y_))
+            scoring_dict["mean_ae"].append(mean_absolute_error(y_test, y_))
+            scoring_dict["median_ae"].append(median_absolute_error(y_test, y_))
         if verbose == 1:
             # Print contents of dictionary except confusion matrix
             # create y_class series for Stratified K-Fold split at pos_split
