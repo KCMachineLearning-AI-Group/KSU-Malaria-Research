@@ -34,18 +34,15 @@ def score():
         print("Running %s" % model_class.__class__.__name__ + "....\n")
         x_train, x_test, y_train, y_scaler, model = model_class.get_validation_support()
         validation_result = validation.score_regressor(
-            x_train, y_train, model,
+            x_train, y_train, model, y_scaler,
             pos_split=y_scaler.transform([[2.1]])
         )
         leaderboard_reg_scores.append(validation_result)
-        print()
-        # Train prediction for sanity check if getting crazy numbers on test prediction
-        # print("Train Prediction:")
-        # print(y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_train)))
-        print("Test Prediction:")
-        print(y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_test)))
-        # This is slower if already ran get_validation_support but should be same output either way
-        # print(model_class.get_test_prediction())
+        print("\nTest Prediction:")
+        # print(y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_test)))
+        predictions = y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_test))
+        for compound, pred in zip(x_test.index, predictions):
+            print(compound, ": ", pred)
         print("\n")
 
 
