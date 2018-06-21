@@ -7,7 +7,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from src.models.model_abstract import ModelAbstract
 from src.data.data_non_linear import DataNonLinear
 from src.data.data_dimension_reduction import DataDimensionReduction
-from src.data.lib.variance_score import VarianceScorer
+from src.data.util.variance_score import VarianceScorer
 
 
 class ModelSGDRegressor(ModelAbstract):
