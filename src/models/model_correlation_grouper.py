@@ -12,14 +12,14 @@ class ModelCorrelationGrouper(ModelAbstract):
         self.selected_features = []
 
     @staticmethod
-    def select_features(x_data):
+    def select_features(x_data, corr_threshold=.91):
         """
         Group features that are highly correlated based on a threshold correlation level.
         Select the (arbitrary) first feature from each group
         :param x_data:
+        :param corr_threshold: Minimum correlation for features to be grouped
         :return: set of selected feature names
         """
-        corr_threshold = .91
         corr_matrix = x_data.corr()
         corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
 
