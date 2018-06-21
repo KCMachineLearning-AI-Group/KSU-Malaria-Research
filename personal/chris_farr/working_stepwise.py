@@ -73,22 +73,37 @@ len(corr_result)
 # Within each corr group there's an "in" and "out" portion for tracking selection
 corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(range(len(corr_result)), corr_result)])
 
-# Starting point: randomly select features from half of the correlation groups (or arbitrary number of them)
-# Start with 100 features
-choices = np.random.choice(range(len(corr_dict)), size=500, replace=False)
-for c in choices:
-    # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
-    corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+# Starting Point A: Read a csv file
+# Upload a starting point from a csv dataframe with no index
+feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+feature_list = list(np.squeeze(feature_df.values))
+# Find the dict key for each feature and add to the list
+for feat in feature_list:
+    for group in corr_dict.keys():
+        if feat in corr_dict[group]["out"]:
+            corr_dict[group]["in"].add(feat)
+            corr_dict[group]["out"].remove(feat)
+            break
+
+# # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
+# # Start with 100 features
+# choices = np.random.choice(range(len(corr_dict)), size=500, replace=False)
+# for c in choices:
+#     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
+#     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
 
 pprint.pprint(corr_dict)
 
+no_improvement_count = 0
+last_benchmark = np.inf
 
-for i in range(5):
+for i in range(1000):
     # pass
     # TODO find corr groups with members held out to sample from
     # TODO find corr groups with members in to sample from
-
     # Every other loop add/remove
+
+    batch_size = 10
 
     # Extract selected features from corr_dict, create new dict with feat as key and group as value
     in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
@@ -99,6 +114,16 @@ for i in range(5):
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
     benchmark = np.mean(benchmark["root_mean_sq_error"])
     print("New Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i)
+    if benchmark >= last_benchmark:
+        no_improvement_count += 1
+    else:
+        no_improvement_count = 0
+    last_benchmark = benchmark
+
+    batch_size += 5 * no_improvement_count
+    if no_improvement_count > 200:
+        print("Early stopping....")
+        break
 
     if i % 2 != 0:
         # Remove features
@@ -179,7 +204,7 @@ results = validation.score_regressor(x_train.loc[:, in_features], y_train, model
                                      pos_split=y_scaler.transform([[2.1]]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-selected_features.to_csv("selected_features.csv", index=False)
+selected_features.to_csv("src/models/support/mixed_stepwise_features.csv", index=False)
 
 """
 with 3 splits and 10 repeats
@@ -189,5 +214,17 @@ average explained_variance: 0.9529389554386497
 average mean_sq_error: 47.53500411504506
 average mean_ae: 5.011080004708307
 average median_ae: 4.037490339305328
+
+with 3 splits and 10 repeats
+average r2_score: 0.9555241154896782
+average root_mean_sq_error: 5.794542669371337
+average explained_variance: 0.9631871015751845
+average mean_sq_error: 38.54550842020435
+average mean_ae: 4.246830260782811
+average median_ae: 3.168010696278745
 """
+
+# TODO After optimal is found, are there any groups with many features included? (highly correlated)
+# TODO How do the results vary when using higher vs lower correlation groups? (95 vs 99)
+
 
