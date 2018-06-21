@@ -40,6 +40,7 @@ import numpy as np
 from sklearn.svm import LinearSVR
 import pprint
 import pandas as pd
+import random
 # Load data
 from src.data.data_non_linear import DataNonLinear
 from src.model_validation import ModelValidation
@@ -81,52 +82,88 @@ for c in choices:
 
 pprint.pprint(corr_dict)
 
-for _ in range(1000):
+
+for i in range(5):
+    # pass
+    # TODO find corr groups with members held out to sample from
+    # TODO find corr groups with members in to sample from
+
+    # Every other loop add/remove
+
     # Extract selected features from corr_dict, create new dict with feat as key and group as value
     in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
 
     # Measure model benchmark
     model = LinearSVR(random_state=0)
-    validation.score_regressor(x_train.loc[:, in_features.keys()], y_train, model, pos_split=y_scaler.transform([[2.1]]))
-    # Remove features
-    # Removal:
-    # * Test the individual removal of a number of features, each from a different correlation group.
-    remove_dict = {}
-    for _ in range(10):
-        # Pick 10 current feature to remove
-        remove_test = np.random.choice(list(in_features.keys()))
-        # Evaluate after removal and log results
-        test_features = [feat for feat in in_features if feat != remove_test]
-        results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, pos_split=y_scaler.transform([[2.1]]))
-        new_score = np.mean(results["r2_score"])
-        remove_dict[remove_test] = new_score
+    benchmark = validation.score_regressor(x_train.loc[:, in_features.keys()], y_train, model, y_scaler,
+                                           pos_split=y_scaler.transform([[2.1]]), verbose=0)
+    benchmark = np.mean(benchmark["root_mean_sq_error"])
+    print("New Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i)
 
-    # If any improve the score, remove the one with the largest improvement
-    # TODO test if any improve score
-    final_removal = sorted(remove_dict, key=remove_dict.get)[-1]
-    # Remove and update corr dict
-    corr_dict[in_features[final_removal]]["out"].add(final_removal)
-    corr_dict[in_features[final_removal]]["in"].remove(final_removal)
+    if i % 2 != 0:
+        # Remove features
+        # * Test the individual removal of a number of features, each from a different correlation group.
+        # TODO Loop until 10 random features are selected from in
+        test_feats_for_removal = dict()
+        # Pick random group
+        choices = np.random.choice(range(len(corr_dict)), 100)
+        k = 0
+        # Test if any are out and pick one randomly
+        for c in choices:
+            if len(corr_dict[c]["in"]) > 0:
+                feat = random.sample(corr_dict[c]["in"], 1)[0]  # Pull random feature
+                test_feats_for_removal[feat] = c  # Store the corr group
+                k += 1
+            if k == 10:
+                break
 
-    # Add feature
-    out_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["out"]])
-    # Randomly choose 10 features from out_features
-    add_dict = {}
-    for _ in range(10):
-        # Pick 10 current feature to remove
-        add_test = np.random.choice(list(out_features.keys()))
-        # Evaluate addition and log results
-        test_features = list(in_features) + [add_test]
-        results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, pos_split=y_scaler.transform([[2.1]]))
-        new_score = np.mean(results["r2_score"])
-        add_dict[add_test] = new_score
+        remove_dict = {}
+        for feat, corr_group in test_feats_for_removal.items():  # Loop through dict keys
+            # Evaluate after removal and log results
+            test_features = [f for f in list(in_features.keys()) if f != feat]
+            results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
+                                                 pos_split=y_scaler.transform([[2.1]]), verbose=0)
+            new_score = np.mean(results["root_mean_sq_error"])
+            remove_dict[feat] = new_score
 
-    # If any improve the score, add the one with the largest improvement
+        # Find the best of those tested
+        final_removal = sorted(remove_dict, key=remove_dict.get, reverse=True)[-1]
+        # Remove and update corr dict if improves score
+        if remove_dict[final_removal] < benchmark:
+            corr_dict[test_feats_for_removal[final_removal]]["out"].add(final_removal)
+            corr_dict[test_feats_for_removal[final_removal]]["in"].remove(final_removal)
 
-    final_addition = sorted(add_dict, key=add_dict.get)[-1]
-    # Add and update corr dict
-    corr_dict[out_features[final_addition]]["in"].add(final_addition)
-    corr_dict[out_features[final_addition]]["out"].remove(final_addition)
+    if i % 2 == 0:
+        # Add feature
+        # TODO Loop until 10 random features are selected from out
+        test_feats_for_addition = dict()
+        # Pick random group
+        choices = np.random.choice(range(len(corr_dict)), 100)
+        k = 0
+        # Test if any are out and pick one randomly
+        for c in choices:
+            if len(corr_dict[c]["out"]) > 0:
+                feat = random.sample(corr_dict[c]["out"], 1)[0]  # Pull random feature
+                test_feats_for_addition[feat] = c  # Store the corr group
+                k += 1
+            if k == 10:
+                break
+        # Randomly choose 10 features from out_features
+        add_dict = {}
+        for feat, corr_group in test_feats_for_addition.items():
+            # Evaluate addition and log results
+            test_features = list(in_features) + [feat]
+            results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
+                                                 pos_split=y_scaler.transform([[2.1]]), verbose=0)
+            new_score = np.mean(results["root_mean_sq_error"])
+            add_dict[feat] = new_score
+
+            # Find the best of those tested
+        final_addition = sorted(add_dict, key=add_dict.get, reverse=True)[-1]
+        # Add and update corr dict if improves score
+        if add_dict[final_addition] < benchmark:
+            corr_dict[test_feats_for_addition[final_addition]]["in"].add(final_addition)
+            corr_dict[test_feats_for_addition[final_addition]]["out"].remove(final_addition)
 
 # Test for stop
 
@@ -138,7 +175,8 @@ in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in grou
 in_features.keys()
 # Final validation
 model = LinearSVR(random_state=0)
-results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, pos_split=y_scaler.transform([[2.1]]))
+results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
+                                     pos_split=y_scaler.transform([[2.1]]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
 selected_features.to_csv("selected_features.csv", index=False)
@@ -146,6 +184,10 @@ selected_features.to_csv("selected_features.csv", index=False)
 """
 with 3 splits and 10 repeats
 average r2_score: 0.9444898240679163
-average rmse: 0.2245742394692992
+average root_mean_sq_error: 6.599426503362611
+average explained_variance: 0.9529389554386497
+average mean_sq_error: 47.53500411504506
+average mean_ae: 5.011080004708307
+average median_ae: 4.037490339305328
 """
-# TODO create new implementation and use CSV output
+
