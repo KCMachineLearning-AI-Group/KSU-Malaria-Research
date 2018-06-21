@@ -29,7 +29,7 @@ class DataNonLinear(DataAbstract):
         return x_data, y_data
 
     @staticmethod
-    def engineer_features(x_data):
+    def engineer_features(x_data, y_data=None):
         """Engineer features"""
         # Perform feature engineering on float columns
         print("performing non-linear transformations....\n")
@@ -68,5 +68,5 @@ class DataNonLinear(DataAbstract):
         # Normalize
         x_train.loc[:, :] = x_scaler.fit_transform(x_train)
         x_test.loc[:, :] = x_scaler.transform(x_test)
-        y_train.loc[:] = np.squeeze(y_scaler.fit_transform(y_train.values.reshape(-1, 1)))
+        y_train.loc[:] = np.squeeze(y_scaler.fit_transform(y_train.values.reshape(-1,1)))
         return x_train, x_test, y_train, y_scaler
