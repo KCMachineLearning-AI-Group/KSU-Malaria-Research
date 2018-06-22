@@ -55,8 +55,8 @@ class ModelValidation(ValidationAbstract):
             raise NotImplementedError
 
         # create logging dictionary to track scores
-        scoring_dict = {"r2_score": [], "root_mean_sq_error": [], "explained_variance": [],
-                        "mean_sq_error": [], "mean_ae": [], "median_ae": []}
+        scoring_dict = {"a. r2_score": [], "d. root_mean_sq_error": [], "b. explained_variance": [],
+                        "c. mean_sq_error": [], "e. mean_absolute_error": [], "f. median_absolute_error": []}
         # loop through splits
         for train, test in self.get_cv(x_data, y_data, pos_split=pos_split):
             x_train, x_test = x_data.iloc[train, :], x_data.iloc[test, :]
@@ -67,12 +67,12 @@ class ModelValidation(ValidationAbstract):
             y_ = y_scaler.inverse_transform(y_)
             y_test = y_scaler.inverse_transform(y_test)
             # append scores to logging dictionary
-            scoring_dict["explained_variance"].append(explained_variance_score(y_test, y_))
-            scoring_dict["r2_score"].append(r2_score(y_test, y_))
-            scoring_dict["root_mean_sq_error"].append(sqrt(mean_squared_error(y_test, y_)))
-            scoring_dict["mean_sq_error"].append(mean_squared_error(y_test, y_))
-            scoring_dict["mean_ae"].append(mean_absolute_error(y_test, y_))
-            scoring_dict["median_ae"].append(median_absolute_error(y_test, y_))
+            scoring_dict["a. r2_score"].append(r2_score(y_test, y_))
+            scoring_dict["b. explained_variance"].append(explained_variance_score(y_test, y_))
+            scoring_dict["c. mean_sq_error"].append(mean_squared_error(y_test, y_))
+            scoring_dict["d. root_mean_sq_error"].append(sqrt(mean_squared_error(y_test, y_)))
+            scoring_dict["e. mean_absolute_error"].append(mean_absolute_error(y_test, y_))
+            scoring_dict["f. median_absolute_error"].append(median_absolute_error(y_test, y_))
         if verbose == 1:
             # Print contents of dictionary except confusion matrix
             # create y_class series for Stratified K-Fold split at pos_split
@@ -80,11 +80,11 @@ class ModelValidation(ValidationAbstract):
             # num_splits count number of positive examples
             num_splits = sum(y_class.values)
             print("with {} splits and {} repeats".format(num_splits, self.REPEATS))
-            for metric in scoring_dict:
+            for metric in sorted(scoring_dict):
                 if metric == "num_splits":
                     continue
                 else:
-                    print("average {}: {}".format(metric, mean(scoring_dict[metric])))
+                    print("average {:<25}".format(metric), ": {:.3f}".format(mean(scoring_dict[metric])))
         return scoring_dict
 
     def score_classifier(self, x_data, y_data, model, add_train_data=None, verbose=1, cls_report=False):
