@@ -2,7 +2,8 @@ from sklearn.svm import LinearSVR
 import pandas as pd
 import numpy as np
 from src.models.model_abstract import ModelAbstract
-from src.data.data_simple import DataSimple
+# from src.data.data_simple import DataSimple
+from src.data.data_non_linear import DataNonLinear
 
 """
 Template for model classes in the KSU project.
@@ -17,7 +18,8 @@ class ModelMixedStepwise(ModelAbstract):
 
     def __init__(self):
         ModelAbstract.__init__(self)
-        self.data_object = DataSimple()  # TODO use your own data class or steal
+        # self.data_object = DataSimple()  # TODO use your own data class or steal
+        self.data_object = DataNonLinear()
         self.selected_features = []
 
     @staticmethod
@@ -27,7 +29,7 @@ class ModelMixedStepwise(ModelAbstract):
         :param x_data: full datasett
         :return:
         """
-        feat_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+        feat_df = pd.read_csv("src/models/support/mixed_stepwise_features_non_linear.csv")
         selected_feats = list(np.squeeze(feat_df.values))
         return selected_feats
 
