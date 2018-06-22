@@ -44,13 +44,17 @@ import random
 # Load data
 from src.data.data_non_linear import DataNonLinear
 from src.model_validation import ModelValidation
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import r2_score, make_scorer
 validation = ModelValidation()
 data_class = DataNonLinear()
 data = data_class.data
 x_data, y_data = data_class.clean_data(data)
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 # Group correlated features
-corr_threshold = .95
+corr_threshold = .99
 corr_matrix = x_train.corr()
 corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
 
@@ -92,6 +96,11 @@ for feat in feature_list:
 #     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
 #     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
 
+# Set model for selection
+# model = LinearSVR(random_state=0)
+base_model = DecisionTreeRegressor(random_state=0, max_depth=3)
+model = AdaBoostRegressor(base_estimator=base_model, random_state=0, n_estimators=135)
+
 pprint.pprint(corr_dict)
 
 no_improvement_count = 0
@@ -109,15 +118,14 @@ for i in range(1000):
     in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
 
     # Measure model benchmark
-    model = LinearSVR(random_state=0)
     benchmark = validation.score_regressor(x_train.loc[:, in_features.keys()], y_train, model, y_scaler,
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
     benchmark = np.mean(benchmark["root_mean_sq_error"])
-    print("New Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i)
     if benchmark >= last_benchmark:
         no_improvement_count += 1
     else:
         no_improvement_count = 0
+    print("New Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count)
     last_benchmark = benchmark
 
     batch_size += 5 * no_improvement_count
@@ -131,7 +139,7 @@ for i in range(1000):
         # TODO Loop until 10 random features are selected from in
         test_feats_for_removal = dict()
         # Pick random group
-        choices = np.random.choice(range(len(corr_dict)), 100)
+        choices = np.random.choice(range(len(corr_dict)), batch_size * 2)
         k = 0
         # Test if any are out and pick one randomly
         for c in choices:
@@ -139,7 +147,7 @@ for i in range(1000):
                 feat = random.sample(corr_dict[c]["in"], 1)[0]  # Pull random feature
                 test_feats_for_removal[feat] = c  # Store the corr group
                 k += 1
-            if k == 10:
+            if k == batch_size:
                 break
 
         remove_dict = {}
@@ -163,7 +171,7 @@ for i in range(1000):
         # TODO Loop until 10 random features are selected from out
         test_feats_for_addition = dict()
         # Pick random group
-        choices = np.random.choice(range(len(corr_dict)), 100)
+        choices = np.random.choice(range(len(corr_dict)), batch_size * 2)
         k = 0
         # Test if any are out and pick one randomly
         for c in choices:
@@ -171,7 +179,7 @@ for i in range(1000):
                 feat = random.sample(corr_dict[c]["out"], 1)[0]  # Pull random feature
                 test_feats_for_addition[feat] = c  # Store the corr group
                 k += 1
-            if k == 10:
+            if k == batch_size:
                 break
         # Randomly choose 10 features from out_features
         add_dict = {}
@@ -204,7 +212,7 @@ results = validation.score_regressor(x_train.loc[:, in_features], y_train, model
                                      pos_split=y_scaler.transform([[2.1]]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-selected_features.to_csv("src/models/support/mixed_stepwise_features.csv", index=False)
+selected_features.to_csv("src/models/support/mixed_stepwise_features_ada.csv", index=False)
 
 """
 with 3 splits and 10 repeats
@@ -226,5 +234,31 @@ average median_ae: 3.168010696278745
 
 # TODO After optimal is found, are there any groups with many features included? (highly correlated)
 # TODO How do the results vary when using higher vs lower correlation groups? (95 vs 99)
+# TODO What models improve the score? Can they be swapped out with SVM for selection?
+# adaboost: .22 R2
 
 
+RANDOM_STATE = 36851234
+
+# AdaBoost
+base_model = DecisionTreeRegressor(random_state=RANDOM_STATE)
+ada_model = AdaBoostRegressor(base_estimator=base_model, random_state=RANDOM_STATE)
+params = {
+    # "base_estimator__max_features": np.arange(.001, .008, 0.001),
+    "base_estimator__max_depth": list(range(1, 20, 1)),
+    "n_estimators": list(range(5, 150, 10)),
+}
+
+cv = ModelValidation().get_cv(x_train, y_train, pos_split=y_scaler.transform([[2.1]]))
+
+grid = GridSearchCV(estimator=ada_model, param_grid=params, cv=cv, verbose=1, n_jobs=7,
+                    scoring=make_scorer(r2_score, greater_is_better=True))
+
+
+grid.fit(x_train.loc[:, in_features], y_train)
+grid.best_params_
+grid.best_score_
+
+ada_model.fit(x_train.loc[:, in_features], y_train)
+results = validation.score_regressor(x_train.loc[:, in_features], y_train, ada_model, y_scaler,
+                                     pos_split=y_scaler.transform([[2.1]]))
