@@ -63,8 +63,7 @@ feature_list = list(np.squeeze(feature_df.values))
 
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 ic.fit(x_train.loc[:, feature_list], y_train)
-train_interactions = ic.transform(x_data.loc[:, feature_list])
-len(interactions)
+interactions = ic.transform(x_data.loc[:, feature_list])
 
 # Combine x_data and interactions
 x_data = pd.merge(x_data, interactions, left_index=True, right_index=True)
@@ -97,24 +96,24 @@ len(corr_result)
 # Within each corr group there's an "in" and "out" portion for tracking selection
 corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(range(len(corr_result)), corr_result)])
 
-# Starting Point A: Read a csv file
-# Upload a starting point from a csv dataframe with no index
-feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
-feature_list = list(np.squeeze(feature_df.values))
-# Find the dict key for each feature and add to the list
-for feat in feature_list:
-    for group in corr_dict.keys():
-        if feat in corr_dict[group]["out"]:
-            corr_dict[group]["in"].add(feat)
-            corr_dict[group]["out"].remove(feat)
-            break
+# # Starting Point A: Read a csv file
+# # Upload a starting point from a csv dataframe with no index
+# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+# feature_list = list(np.squeeze(feature_df.values))
+# # Find the dict key for each feature and add to the list
+# for feat in feature_list:
+#     for group in corr_dict.keys():
+#         if feat in corr_dict[group]["out"]:
+#             corr_dict[group]["in"].add(feat)
+#             corr_dict[group]["out"].remove(feat)
+#             break
 
-# # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
-# # Start with 100 features
-# choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
-# for c in choices:
-#     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
-#     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+# Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
+# Start with 100 features
+choices = np.random.choice(range(len(corr_dict)), size=100, replace=False)
+for c in choices:
+    # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
+    corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
 
 
 # Set model for selection
@@ -124,6 +123,7 @@ model = LinearSVR(random_state=0)
 
 no_improvement_count = 0
 last_benchmark = np.inf
+multiplier = 5
 
 for i in range(1000):
     # pass
@@ -149,13 +149,16 @@ for i in range(1000):
           " feats: ", len(in_features))
     last_benchmark = benchmark
 
-    batch_size += 5 * no_improvement_count
-    if no_improvement_count > 200:
+    batch_size += multiplier * no_improvement_count
+    if no_improvement_count > 50:
         print("Early stopping....")
         break
 
     if i % 2 != 0:
         # Remove features
+        # If no_improvement_count * 5 > len(in_features) then pass (all have been tested already w/o changes)
+        if no_improvement_count * multiplier > len(in_features):
+            continue
         # * Test the individual removal of a number of features, each from a different correlation group.
         # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
         test_feats_for_removal = dict()
@@ -233,6 +236,7 @@ for i in range(1000):
 in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
 
 in_features.keys()
+len(in_features)
 # Final validation
 model = LinearSVR(random_state=0)
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
@@ -240,7 +244,7 @@ results = validation.score_regressor(x_train.loc[:, in_features], y_train, model
 predictions = y_scaler.inverse_transform(model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-selected_features.to_csv("src/models/support/mixed_stepwise_features_interactions.csv", index=False)
+selected_features.to_csv("src/models/support/mixed_stepwise_small_start_interactions.csv", index=False)
 
 """
 with 3 splits and 10 repeats
@@ -356,13 +360,13 @@ results = validation.score_regressor(x_train.loc[:, in_features], y_train, model
 model = LinearSVR(random_state=0)
 
 params = {
-    "C": np.arange(0.1, 1.5, .5),
-    "epsilon": np.arange(0.01, 0.05, 0.01),
+    "C": np.arange(0.1, 1., .1),
+    "epsilon": np.arange(0.0001, 0.05, 0.01),
 }
 
 cv = ModelValidation().get_cv(x_train, y_train, pos_split=y_scaler.transform([[2.1]]))
 
-grid = GridSearchCV(estimator=model, param_grid=params, cv=cv, verbose=1, n_jobs=7,
+grid = GridSearchCV(estimator=model, param_grid=params, cv=cv, verbose=1, n_jobs=3,
                     scoring=make_scorer(mean_squared_error, greater_is_better=False))
 
 grid.fit(x_train.loc[:, in_features], y_train)
@@ -373,3 +377,10 @@ grid.best_score_
 
 # Sample weights
 # sklearn.utils.class_weight.compute_sample_weight(class_weight, y, indices=None)
+
+
+# TODO Try different models
+
+
+
+

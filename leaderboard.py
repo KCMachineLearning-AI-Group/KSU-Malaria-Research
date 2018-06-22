@@ -20,10 +20,10 @@ validation = ModelValidation()
 
 leaderboard_regressors = [
     ModelMixedStepwise(),
-    # ModelMyModel(),
-    # ModelLinearReg(),
-    # ModelSGDRegressor(),
-    # ModelLinearSVR()
+    ModelMyModel(),
+    ModelLinearReg(),
+    ModelSGDRegressor(),
+    ModelLinearSVR()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []
@@ -33,6 +33,7 @@ def score():
     for model_class in leaderboard_regressors:
         print("Running %s" % model_class.__class__.__name__ + "....\n")
         x_train, x_test, y_train, y_scaler, model = model_class.get_validation_support()
+        print("\nScore Summary:")
         validation_result = validation.score_regressor(
             x_train, y_train, model, y_scaler,
             pos_split=y_scaler.transform([[2.1]])
@@ -42,7 +43,7 @@ def score():
         # print(y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_test)))
         predictions = y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_test))
         for compound, pred in zip(x_test.index, predictions):
-            print(compound, ": ", pred)
+            print("{:<10}".format(compound), ": ", '{0:>5.2f}'.format(pred))
         print("\n")
 
 
