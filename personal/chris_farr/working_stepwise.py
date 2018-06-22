@@ -47,7 +47,7 @@ from src.model_validation import ModelValidation
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import r2_score, make_scorer
+from sklearn.metrics import r2_score, make_scorer, mean_squared_error
 validation = ModelValidation()
 data_class = DataNonLinear()
 data = data_class.data
@@ -97,9 +97,7 @@ for feat in feature_list:
 #     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
 
 # Set model for selection
-# model = LinearSVR(random_state=0)
-base_model = DecisionTreeRegressor(random_state=0, max_depth=3)
-model = AdaBoostRegressor(base_estimator=base_model, random_state=0, n_estimators=135)
+model = LinearSVR(random_state=0)
 
 pprint.pprint(corr_dict)
 
@@ -241,24 +239,28 @@ average median_ae: 3.168010696278745
 RANDOM_STATE = 36851234
 
 # AdaBoost
-base_model = DecisionTreeRegressor(random_state=RANDOM_STATE)
-ada_model = AdaBoostRegressor(base_estimator=base_model, random_state=RANDOM_STATE)
+from sklearn.ensemble import BaggingRegressor
+
+model = BaggingRegressor(LinearSVR(random_state=0), max_samples=.99, max_features=.99)
+
 params = {
-    # "base_estimator__max_features": np.arange(.001, .008, 0.001),
-    "base_estimator__max_depth": list(range(1, 20, 1)),
-    "n_estimators": list(range(5, 150, 10)),
+    "n_estimators": list(range(1, 20, 1)),
 }
 
 cv = ModelValidation().get_cv(x_train, y_train, pos_split=y_scaler.transform([[2.1]]))
 
-grid = GridSearchCV(estimator=ada_model, param_grid=params, cv=cv, verbose=1, n_jobs=7,
-                    scoring=make_scorer(r2_score, greater_is_better=True))
+grid = GridSearchCV(estimator=model, param_grid=params, cv=cv, verbose=1, n_jobs=7,
+                    scoring=make_scorer(mean_squared_error, greater_is_better=False))
 
 
 grid.fit(x_train.loc[:, in_features], y_train)
 grid.best_params_
 grid.best_score_
+from sklearn.svm import SVR
+# TODO start here!!! Tune linear SVM
 
-ada_model.fit(x_train.loc[:, in_features], y_train)
-results = validation.score_regressor(x_train.loc[:, in_features], y_train, ada_model, y_scaler,
+
+model = BaggingRegressor(LinearSVR(random_state=0), n_estimators=25, max_samples=.99, max_features=.99)
+
+results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
