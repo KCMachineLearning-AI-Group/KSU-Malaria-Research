@@ -19,11 +19,11 @@ command line with `python leaderboard.py` from the project root.
 validation = ModelValidation()
 
 leaderboard_regressors = [
-    ModelMyModel(),
     ModelMixedStepwise(),
-    ModelLinearReg(),
-    ModelSGDRegressor(),
-    ModelLinearSVR()
+    # ModelMyModel(),
+    # ModelLinearReg(),
+    # ModelSGDRegressor(),
+    # ModelLinearSVR()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []

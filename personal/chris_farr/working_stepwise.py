@@ -43,17 +43,35 @@ import pandas as pd
 import random
 # Load data
 from src.data.data_non_linear import DataNonLinear
+from src.data.data_simple import DataSimple
 from src.model_validation import ModelValidation
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import make_scorer, mean_squared_error
+from src.data.data_interactions import InteractionChecker
 
 validation = ModelValidation()
-data_class = DataNonLinear()
-# data = data_class.data
-# x_data, y_data = data_class.clean_data(data)
-# x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
+# data_class = DataNonLinear()
+data_class = DataSimple()
+data = data_class.data
+x_data, y_data = data_class.clean_data(data)
 
-x_train, x_test, y_train, y_scaler = data_class.load_data()
+# TODO add interactions for selected features and continue loop process for adding them to the model
+
+ic = InteractionChecker(alpha=.01)
+feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+feature_list = list(np.squeeze(feature_df.values))
+
+x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
+ic.fit(x_train.loc[:, feature_list], y_train)
+train_interactions = ic.transform(x_data.loc[:, feature_list])
+len(interactions)
+
+# Combine x_data and interactions
+x_data = pd.merge(x_data, interactions, left_index=True, right_index=True)
+
+x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
+
+# Pull data from DataStepInteractions
 
 # Group correlated features
 corr_threshold = .98
@@ -79,24 +97,25 @@ len(corr_result)
 # Within each corr group there's an "in" and "out" portion for tracking selection
 corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(range(len(corr_result)), corr_result)])
 
-# # Starting Point A: Read a csv file
-# # Upload a starting point from a csv dataframe with no index
-# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
-# feature_list = list(np.squeeze(feature_df.values))
-# # Find the dict key for each feature and add to the list
-# for feat in feature_list:
-#     for group in corr_dict.keys():
-#         if feat in corr_dict[group]["out"]:
-#             corr_dict[group]["in"].add(feat)
-#             corr_dict[group]["out"].remove(feat)
-#             break
+# Starting Point A: Read a csv file
+# Upload a starting point from a csv dataframe with no index
+feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+feature_list = list(np.squeeze(feature_df.values))
+# Find the dict key for each feature and add to the list
+for feat in feature_list:
+    for group in corr_dict.keys():
+        if feat in corr_dict[group]["out"]:
+            corr_dict[group]["in"].add(feat)
+            corr_dict[group]["out"].remove(feat)
+            break
 
-# Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
-# Start with 100 features
-choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
-for c in choices:
-    # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
-    corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+# # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
+# # Start with 100 features
+# choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
+# for c in choices:
+#     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
+#     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+
 
 # Set model for selection
 model = LinearSVR(random_state=0)
@@ -106,7 +125,7 @@ model = LinearSVR(random_state=0)
 no_improvement_count = 0
 last_benchmark = np.inf
 
-for i in range(10000):
+for i in range(1000):
     # pass
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
@@ -218,9 +237,10 @@ in_features.keys()
 model = LinearSVR(random_state=0)
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
+predictions = y_scaler.inverse_transform(model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-selected_features.to_csv("src/models/support/mixed_stepwise_features_non_linear.csv", index=False)
+selected_features.to_csv("src/models/support/mixed_stepwise_features_interactions.csv", index=False)
 
 """
 with 3 splits and 10 repeats
@@ -238,6 +258,16 @@ average explained_variance: 0.9631871015751845
 average mean_sq_error: 38.54550842020435
 average mean_ae: 4.246830260782811
 average median_ae: 3.168010696278745
+
+with 3 splits and 10 repeats
+average r2_score: 0.9585861342532347
+average root_mean_sq_error: 5.5830968568156
+average explained_variance: 0.9662721109868795
+average mean_sq_error: 35.725353411918256
+average mean_ae: 4.037905594027995
+average median_ae: 2.8400047455231103
+
+
 """
 
 """
@@ -258,6 +288,24 @@ average explained_variance: 0.974132617465656
 average mean_sq_error: 22.62275261201872
 average mean_ae: 3.3568956545556157
 average median_ae: 2.5991535583753516
+
+The test results showed the model overfit the training data. Results were in a wide range.
+
+"""
+
+"""
+Adding interactions
+
+with 3 splits and 10 repeats
+average r2_score: 0.961638538591749
+average root_mean_sq_error: 5.360477194226963
+average explained_variance: 0.9686321828419017
+average mean_sq_error: 33.311014135739384
+average mean_ae: 3.8121487771082276
+average median_ae: 2.5917262295560732
+
+Promising test results too
+
 
 """
 
@@ -295,3 +343,33 @@ model = BaggingRegressor(LinearSVR(random_state=0), n_estimators=25, max_samples
 
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
+
+
+# TODO Optimize LinearSVR
+
+# https://cs.adelaide.edu.au/~chhshen/teaching/ML_SVR.pdf
+# Epsilon: what is the maximum error that we should tolerate from the model? Convert this to the scale of y
+# Come up with a logical starting point and then tune using gridsearch to ensure generalizeale
+# Depends on the test prediction, max of 2? Convert 2 to y scale, set as epsilon, tune
+# Tune C at the same time...
+
+model = LinearSVR(random_state=0)
+
+params = {
+    "C": np.arange(0.1, 1.5, .5),
+    "epsilon": np.arange(0.01, 0.05, 0.01),
+}
+
+cv = ModelValidation().get_cv(x_train, y_train, pos_split=y_scaler.transform([[2.1]]))
+
+grid = GridSearchCV(estimator=model, param_grid=params, cv=cv, verbose=1, n_jobs=7,
+                    scoring=make_scorer(mean_squared_error, greater_is_better=False))
+
+grid.fit(x_train.loc[:, in_features], y_train)
+grid.best_params_
+grid.best_score_
+
+
+
+# Sample weights
+# sklearn.utils.class_weight.compute_sample_weight(class_weight, y, indices=None)
