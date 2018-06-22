@@ -44,17 +44,19 @@ import random
 # Load data
 from src.data.data_non_linear import DataNonLinear
 from src.model_validation import ModelValidation
-from sklearn.ensemble import AdaBoostRegressor
-from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import r2_score, make_scorer, mean_squared_error
+from sklearn.metrics import make_scorer, mean_squared_error
+
 validation = ModelValidation()
 data_class = DataNonLinear()
-data = data_class.data
-x_data, y_data = data_class.clean_data(data)
-x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
+# data = data_class.data
+# x_data, y_data = data_class.clean_data(data)
+# x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
+
+x_train, x_test, y_train, y_scaler = data_class.load_data()
+
 # Group correlated features
-corr_threshold = .99
+corr_threshold = .98
 corr_matrix = x_train.corr()
 corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
 
@@ -77,38 +79,39 @@ len(corr_result)
 # Within each corr group there's an "in" and "out" portion for tracking selection
 corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(range(len(corr_result)), corr_result)])
 
-# Starting Point A: Read a csv file
-# Upload a starting point from a csv dataframe with no index
-feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
-feature_list = list(np.squeeze(feature_df.values))
-# Find the dict key for each feature and add to the list
-for feat in feature_list:
-    for group in corr_dict.keys():
-        if feat in corr_dict[group]["out"]:
-            corr_dict[group]["in"].add(feat)
-            corr_dict[group]["out"].remove(feat)
-            break
+# # Starting Point A: Read a csv file
+# # Upload a starting point from a csv dataframe with no index
+# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+# feature_list = list(np.squeeze(feature_df.values))
+# # Find the dict key for each feature and add to the list
+# for feat in feature_list:
+#     for group in corr_dict.keys():
+#         if feat in corr_dict[group]["out"]:
+#             corr_dict[group]["in"].add(feat)
+#             corr_dict[group]["out"].remove(feat)
+#             break
 
-# # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
-# # Start with 100 features
-# choices = np.random.choice(range(len(corr_dict)), size=500, replace=False)
-# for c in choices:
-#     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
-#     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+# Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
+# Start with 100 features
+choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
+for c in choices:
+    # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
+    corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
 
 # Set model for selection
 model = LinearSVR(random_state=0)
 
-pprint.pprint(corr_dict)
+# pprint.pprint(corr_dict)
 
 no_improvement_count = 0
 last_benchmark = np.inf
 
-for i in range(1000):
+for i in range(10000):
     # pass
-    # TODO find corr groups with members held out to sample from
-    # TODO find corr groups with members in to sample from
     # Every other loop add/remove
+    # Select for add by correlation group, one from random selection of them
+    # Select for removal a random sample up to the size of in_features
+    # TODO add parallel if no improve for > 10
 
     batch_size = 10
 
@@ -123,7 +126,8 @@ for i in range(1000):
         no_improvement_count += 1
     else:
         no_improvement_count = 0
-    print("New Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count)
+    print("New Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count,
+          " feats: ", len(in_features))
     last_benchmark = benchmark
 
     batch_size += 5 * no_improvement_count
@@ -134,22 +138,17 @@ for i in range(1000):
     if i % 2 != 0:
         # Remove features
         # * Test the individual removal of a number of features, each from a different correlation group.
-        # TODO Loop until 10 random features are selected from in
+        # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
         test_feats_for_removal = dict()
-        # Pick random group
-        choices = np.random.choice(range(len(corr_dict)), batch_size * 2)
-        k = 0
-        # Test if any are out and pick one randomly
-        for c in choices:
-            if len(corr_dict[c]["in"]) > 0:
-                feat = random.sample(corr_dict[c]["in"], 1)[0]  # Pull random feature
-                test_feats_for_removal[feat] = c  # Store the corr group
-                k += 1
-            if k == batch_size:
-                break
+        # Choose testing features randomly
+        choices = np.random.choice(range(len(in_features)), min(batch_size, len(in_features)))
+        for i_, feat in enumerate(in_features.keys()):
+            if i_ in choices:
+                test_feats_for_removal[feat] = in_features[feat]
 
         remove_dict = {}
         for feat, corr_group in test_feats_for_removal.items():  # Loop through dict keys
+
             # Evaluate after removal and log results
             test_features = [f for f in list(in_features.keys()) if f != feat]
             results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
@@ -166,10 +165,10 @@ for i in range(1000):
 
     if i % 2 == 0:
         # Add feature
-        # TODO Loop until 10 random features are selected from out
+        # TODO Parallelize this when no improve > 10
         test_feats_for_addition = dict()
         # Pick random group
-        choices = np.random.choice(range(len(corr_dict)), batch_size * 2)
+        choices = np.random.choice(range(len(corr_dict)), batch_size * 10)
         k = 0
         # Test if any are out and pick one randomly
         for c in choices:
@@ -180,6 +179,18 @@ for i in range(1000):
             if k == batch_size:
                 break
         # Randomly choose 10 features from out_features
+
+        # from joblib import Parallel, delayed
+        #
+        # # TODO par
+        # n_jobs = 7
+        # par_results = Parallel(n_jobs=n_jobs)(
+        #     delayed(validation.score_regressor(x_train.loc[:, list(in_features.values()) + [feat]],
+        #                                        y_train, model, y_scaler,
+        #                                        pos_split=y_scaler.transform([[2.1]]),
+        #                                        verbose=0))(feat) for feat in test_feats_for_addition.items())
+        # https://stackoverflow.com/questions/22878743/how-to-split-dictionary-into-multiple-dictionaries-fast
+        # How to keep together with feat?
         add_dict = {}
         for feat, corr_group in test_feats_for_addition.items():
             # Evaluate addition and log results
@@ -202,7 +213,6 @@ for i in range(1000):
 
 in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
 
-
 in_features.keys()
 # Final validation
 model = LinearSVR(random_state=0)
@@ -210,7 +220,7 @@ results = validation.score_regressor(x_train.loc[:, in_features], y_train, model
                                      pos_split=y_scaler.transform([[2.1]]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-selected_features.to_csv("src/models/support/mixed_stepwise_features_ada.csv", index=False)
+selected_features.to_csv("src/models/support/mixed_stepwise_features_non_linear.csv", index=False)
 
 """
 with 3 splits and 10 repeats
@@ -228,6 +238,27 @@ average explained_variance: 0.9631871015751845
 average mean_sq_error: 38.54550842020435
 average mean_ae: 4.246830260782811
 average median_ae: 3.168010696278745
+"""
+
+"""
+Non-linear transformations added, started over
+
+with 3 splits and 10 repeats
+average r2_score: 0.9692269177991055
+average root_mean_sq_error: 4.510349621318988
+average explained_variance: 0.9732512433123808
+average mean_sq_error: 23.24435271307241
+average mean_ae: 3.4382322072605125
+average median_ae: 2.712202668633315
+
+with 3 splits and 10 repeats
+average r2_score: 0.9700143727174664
+average root_mean_sq_error: 4.430248948092821
+average explained_variance: 0.974132617465656
+average mean_sq_error: 22.62275261201872
+average mean_ae: 3.3568956545556157
+average median_ae: 2.5991535583753516
+
 """
 
 # TODO After optimal is found, are there any groups with many features included? (highly correlated)
@@ -252,11 +283,11 @@ cv = ModelValidation().get_cv(x_train, y_train, pos_split=y_scaler.transform([[2
 grid = GridSearchCV(estimator=model, param_grid=params, cv=cv, verbose=1, n_jobs=7,
                     scoring=make_scorer(mean_squared_error, greater_is_better=False))
 
-
 grid.fit(x_train.loc[:, in_features], y_train)
 grid.best_params_
 grid.best_score_
 from sklearn.svm import SVR
+
 # TODO start here!!! Tune linear SVM
 
 
