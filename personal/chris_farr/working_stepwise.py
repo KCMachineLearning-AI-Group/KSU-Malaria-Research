@@ -53,6 +53,7 @@ import math
 from personal.chris_farr.stepwise_par_support import par_addition
 from joblib import Parallel, delayed
 
+
 validation = ModelValidation()
 # data_class = DataNonLinear()
 data_class = DataSimple()
@@ -146,6 +147,7 @@ for i in range(100):
     benchmark = validation.score_regressor(x_train.loc[:, in_features.keys()], y_train, model, y_scaler,
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
     benchmark = np.mean(benchmark["d. root_mean_sq_error"])
+
     if benchmark >= last_benchmark:
         no_improvement_count += 1
     else:
@@ -203,7 +205,6 @@ for i in range(100):
                 k += 1
             if k == batch_size:
                 break
-
         if par:
             # Par Version 1
             # No helper function, may average to lower performance than par version 2
@@ -297,7 +298,6 @@ average mean_sq_error: 35.725353411918256
 average mean_ae: 4.037905594027995
 average median_ae: 2.8400047455231103
 
-
 """
 
 """
@@ -324,6 +324,7 @@ The test results showed the model overfit the training data. Results were in a w
 """
 
 """
+
 Adding interactions
 
 with 3 splits and 10 repeats
