@@ -77,7 +77,7 @@ x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 # Pull data from DataStepInteractions
 
 # Group correlated features
-corr_threshold = .98
+corr_threshold = .99
 corr_matrix = x_train.corr()
 corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
 
@@ -102,7 +102,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 
 # # Starting Point A: Read a csv file
 # # Upload a starting point from a csv dataframe with no index
-# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features_interactions.csv")
 # feature_list = list(np.squeeze(feature_df.values))
 # # Find the dict key for each feature and add to the list
 # for feat in feature_list:
@@ -114,10 +114,28 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 
 # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
 # Start with 100 features
-choices = np.random.choice(range(len(corr_dict)), size=100, replace=False)
+choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+
+# Optional
+# Random shuffle to a few features to get unstuck
+shuffle_size = 5
+choices = np.random.choice(range(len(corr_dict)), size=shuffle_size, replace=False)
+for c in choices:
+    # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
+    if random.randint(0, 100) % 2 == 0:
+        try:
+            corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+        except Exception as e:
+            print(e)
+    else:
+        try:
+            corr_dict[c]["out"].add(corr_dict[c]["in"].pop())
+        except Exception as e:
+            print(e)
+
 
 # Set model for selection
 model = LinearSVR(random_state=0)
@@ -126,12 +144,12 @@ model = LinearSVR(random_state=0)
 
 no_improvement_count = 0
 last_benchmark = np.inf
-multiplier = 10
+multiplier = 50
 n_jobs = 7
 starting_batch_size = 100
 par = True
 
-for i in range(100):
+for i in range(400):
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
     # Select for removal a random sample up to the size of in_features
@@ -254,23 +272,40 @@ for i in range(100):
             corr_dict[test_feats_for_addition[final_addition]]["in"].add(final_addition)
             corr_dict[test_feats_for_addition[final_addition]]["out"].remove(final_addition)
 
-# Test for stop
-
-# TODO number of features needs to drift. Only change if improves.
-
+# Final scoring and storage
 in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
 
-in_features.keys()
-len(in_features)
 # Final validation
 model = LinearSVR(random_state=0)
+np.set_printoptions(suppress=True)
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
 predictions = y_scaler.inverse_transform(
     model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-selected_features.to_csv("src/models/support/mixed_stepwise_small_start_interactions.csv", index=False)
+# selected_features.to_csv("src/models/support/mixed_stepwise_small_start_interactions.csv", index=False)
+
+# TODO run many different times, store the columns select, the test predictions, and the performance scores
+
+# Set name for round
+round_name = "{}_feats_{:.2f}_rmse".format(len(in_features), np.mean(results["d. root_mean_sq_error"]))
+# Read files
+test_prediction_df = pd.read_csv("personal/chris_farr/robust_predictions.csv", index_col=0)
+selected_features_df = pd.read_csv("personal/chris_farr/robust_features.csv", index_col=0)
+# Add data
+# Create test predictions df
+new_test_prediction_df = pd.DataFrame(columns=[round_name], data=predictions, index=x_test.index)
+test_prediction_df = pd.merge(test_prediction_df, new_test_prediction_df, how="outer", left_index=True, right_index=True)
+# Create selected features
+new_selected_features_df = pd.DataFrame(columns=[round_name], data=[1] * len(selected_features), index=selected_features.features)
+# selected_features_df = pd.DataFrame(index=x_train.columns)
+selected_features_df = pd.merge(selected_features_df, new_selected_features_df, how="outer", left_index=True, right_index=True).fillna(0).astype(int)
+# Store files
+test_prediction_df.to_csv("personal/chris_farr/robust_predictions.csv")
+selected_features_df.to_csv("personal/chris_farr/robust_features.csv")
+
+
 
 """
 with 3 splits and 10 repeats
