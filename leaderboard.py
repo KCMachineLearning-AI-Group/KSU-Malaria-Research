@@ -20,10 +20,10 @@ validation = ModelValidation()
 
 leaderboard_regressors = [
     ModelMixedStepwise(),
-    ModelMyModel(),
-    ModelLinearReg(),
-    ModelSGDRegressor(),
-    ModelLinearSVR()
+    # ModelMyModel(),
+    # ModelLinearReg(),
+    # ModelSGDRegressor(),
+    # ModelLinearSVR()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []

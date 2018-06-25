@@ -284,7 +284,7 @@ predictions = y_scaler.inverse_transform(
     model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-# selected_features.to_csv("src/models/support/mixed_stepwise_small_start_interactions.csv", index=False)
+selected_features.to_csv("src/models/support/mixed_stepwise_features_interactions.csv", index=False)
 
 # TODO run many different times, store the columns select, the test predictions, and the performance scores
 
@@ -304,8 +304,6 @@ selected_features_df = pd.merge(selected_features_df, new_selected_features_df, 
 # Store files
 test_prediction_df.to_csv("personal/chris_farr/robust_predictions.csv")
 selected_features_df.to_csv("personal/chris_farr/robust_features.csv")
-
-
 
 """
 with 3 splits and 10 repeats
