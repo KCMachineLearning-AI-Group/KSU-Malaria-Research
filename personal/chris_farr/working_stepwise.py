@@ -48,6 +48,10 @@ from src.model_validation import ModelValidation
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import make_scorer, mean_squared_error
 from src.data.data_interactions import InteractionChecker
+import time
+import math
+from personal.chris_farr.stepwise_par_support import par_addition
+from joblib import Parallel, delayed
 
 validation = ModelValidation()
 # data_class = DataNonLinear()
@@ -115,7 +119,6 @@ for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
 
-
 # Set model for selection
 model = LinearSVR(random_state=0)
 
@@ -123,16 +126,18 @@ model = LinearSVR(random_state=0)
 
 no_improvement_count = 0
 last_benchmark = np.inf
-multiplier = 5
+multiplier = 10
+n_jobs = 7
+starting_batch_size = 100
+par = True
 
-for i in range(1000):
-    # pass
+for i in range(100):
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
     # Select for removal a random sample up to the size of in_features
     # TODO add parallel if no improve for > 10
 
-    batch_size = 10
+    batch_size = starting_batch_size
 
     # Extract selected features from corr_dict, create new dict with feat as key and group as value
     in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
@@ -140,7 +145,7 @@ for i in range(1000):
     # Measure model benchmark
     benchmark = validation.score_regressor(x_train.loc[:, in_features.keys()], y_train, model, y_scaler,
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
-    benchmark = np.mean(benchmark["root_mean_sq_error"])
+    benchmark = np.mean(benchmark["d. root_mean_sq_error"])
     if benchmark >= last_benchmark:
         no_improvement_count += 1
     else:
@@ -175,7 +180,7 @@ for i in range(1000):
             test_features = [f for f in list(in_features.keys()) if f != feat]
             results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
                                                  pos_split=y_scaler.transform([[2.1]]), verbose=0)
-            new_score = np.mean(results["root_mean_sq_error"])
+            new_score = np.mean(results["d. root_mean_sq_error"])
             remove_dict[feat] = new_score
 
         # Find the best of those tested
@@ -185,9 +190,7 @@ for i in range(1000):
             corr_dict[test_feats_for_removal[final_removal]]["out"].add(final_removal)
             corr_dict[test_feats_for_removal[final_removal]]["in"].remove(final_removal)
 
-    if i % 2 == 0:
-        # Add feature
-        # TODO Parallelize this when no improve > 10
+    if i % 2 == 0:  # Adding a feature
         test_feats_for_addition = dict()
         # Pick random group
         choices = np.random.choice(range(len(corr_dict)), batch_size * 10)
@@ -200,29 +203,51 @@ for i in range(1000):
                 k += 1
             if k == batch_size:
                 break
-        # Randomly choose 10 features from out_features
 
-        # from joblib import Parallel, delayed
-        #
-        # # TODO par
-        # n_jobs = 7
-        # par_results = Parallel(n_jobs=n_jobs)(
-        #     delayed(validation.score_regressor(x_train.loc[:, list(in_features.values()) + [feat]],
-        #                                        y_train, model, y_scaler,
-        #                                        pos_split=y_scaler.transform([[2.1]]),
-        #                                        verbose=0))(feat) for feat in test_feats_for_addition.items())
-        # https://stackoverflow.com/questions/22878743/how-to-split-dictionary-into-multiple-dictionaries-fast
-        # How to keep together with feat?
-        add_dict = {}
-        for feat, corr_group in test_feats_for_addition.items():
-            # Evaluate addition and log results
-            test_features = list(in_features) + [feat]
-            results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
-                                                 pos_split=y_scaler.transform([[2.1]]), verbose=0)
-            new_score = np.mean(results["root_mean_sq_error"])
-            add_dict[feat] = new_score
+        if par:
+            # Par Version 1
+            # No helper function, may average to lower performance than par version 2
+            # print("starting par 1:")
+            # start = time.time()
+            add_dict = {}
+            par_results = Parallel(n_jobs=n_jobs)(
+                delayed(validation.score_regressor)(x_train.loc[:, list(in_features) + [feat]],
+                                                    y_train, model, y_scaler,
+                                                    pos_split=y_scaler.transform([[2.1]]),
+                                                    verbose=0) for feat, i_ in test_feats_for_addition.items())
+            # Loop through results, Find the rmse and pair with feature
+            for results, feat in zip(par_results, test_feats_for_addition.keys()):  # par_grouping
+                new_score = np.mean(results["d. root_mean_sq_error"])
+                add_dict[feat] = new_score
+            # stop = time.time()
+            # print((stop - start))
 
-            # Find the best of those tested
+            # print("starting par 2")
+            # # Par Version 2, uses helper function, may have better load balancing
+            # start = time.time()
+            # list_size = int(math.ceil(len(test_feats_for_addition) / n_jobs))
+            # # Create list of even lists for parallel
+            # par_list = [list(test_feats_for_addition)[i:i + list_size]
+            #             for i in range(0, len(test_feats_for_addition), list_size)]
+            # par_results = Parallel(n_jobs=n_jobs)(
+            #     delayed(par_addition)(feature_list, in_features, x_train, y_train, model, y_scaler)
+            #     for feature_list in par_list)
+            # len(par_results)
+            # add_dict = dict([(key_, value_) for subdict in par_results for key_, value_ in subdict.items()])
+            # stop = time.time()
+            # print((stop - start))
+
+        else:
+            # Non-parallel
+            add_dict = {}
+            for feat in test_feats_for_addition.keys():
+                # Evaluate addition and log results
+                test_features = list(in_features) + [feat]
+                results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
+                                                     pos_split=y_scaler.transform([[2.1]]), verbose=0)
+                new_score = np.mean(results["d. root_mean_sq_error"])
+                add_dict[feat] = new_score
+
         final_addition = sorted(add_dict, key=add_dict.get, reverse=True)[-1]
         # Add and update corr dict if improves score
         if add_dict[final_addition] < benchmark:
@@ -241,7 +266,8 @@ len(in_features)
 model = LinearSVR(random_state=0)
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
-predictions = y_scaler.inverse_transform(model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
+predictions = y_scaler.inverse_transform(
+    model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
 selected_features.to_csv("src/models/support/mixed_stepwise_small_start_interactions.csv", index=False)
@@ -348,7 +374,6 @@ model = BaggingRegressor(LinearSVR(random_state=0), n_estimators=25, max_samples
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
 
-
 # TODO Optimize LinearSVR
 
 # https://cs.adelaide.edu.au/~chhshen/teaching/ML_SVR.pdf
@@ -373,14 +398,8 @@ grid.fit(x_train.loc[:, in_features], y_train)
 grid.best_params_
 grid.best_score_
 
-
-
 # Sample weights
 # sklearn.utils.class_weight.compute_sample_weight(class_weight, y, indices=None)
 
 
 # TODO Try different models
-
-
-
-
