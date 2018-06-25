@@ -163,7 +163,7 @@ for i in range(400):
     # Measure model benchmark
     benchmark = validation.score_regressor(x_train.loc[:, in_features.keys()], y_train, model, y_scaler,
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
-    benchmark = np.mean(benchmark["d. root_mean_sq_error"])
+    benchmark = np.mean(benchmark["root_mean_sq_error"])
     if benchmark >= last_benchmark:
         no_improvement_count += 1
     else:
@@ -198,7 +198,7 @@ for i in range(400):
             test_features = [f for f in list(in_features.keys()) if f != feat]
             results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
                                                  pos_split=y_scaler.transform([[2.1]]), verbose=0)
-            new_score = np.mean(results["d. root_mean_sq_error"])
+            new_score = np.mean(results["root_mean_sq_error"])
             remove_dict[feat] = new_score
 
         # Find the best of those tested
@@ -235,7 +235,7 @@ for i in range(400):
                                                     verbose=0) for feat, i_ in test_feats_for_addition.items())
             # Loop through results, Find the rmse and pair with feature
             for results, feat in zip(par_results, test_feats_for_addition.keys()):  # par_grouping
-                new_score = np.mean(results["d. root_mean_sq_error"])
+                new_score = np.mean(results["root_mean_sq_error"])
                 add_dict[feat] = new_score
             # stop = time.time()
             # print((stop - start))
@@ -263,7 +263,7 @@ for i in range(400):
                 test_features = list(in_features) + [feat]
                 results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
                                                      pos_split=y_scaler.transform([[2.1]]), verbose=0)
-                new_score = np.mean(results["d. root_mean_sq_error"])
+                new_score = np.mean(results["root_mean_sq_error"])
                 add_dict[feat] = new_score
 
         final_addition = sorted(add_dict, key=add_dict.get, reverse=True)[-1]
@@ -289,7 +289,7 @@ selected_features.to_csv("src/models/support/mixed_stepwise_features_interaction
 # TODO run many different times, store the columns select, the test predictions, and the performance scores
 
 # Set name for round
-round_name = "{}_feats_{:.2f}_rmse".format(len(in_features), np.mean(results["d. root_mean_sq_error"]))
+round_name = "{}_feats_{:.2f}_rmse".format(len(in_features), np.mean(results["root_mean_sq_error"]))
 # Read files
 test_prediction_df = pd.read_csv("personal/chris_farr/robust_predictions.csv", index_col=0)
 selected_features_df = pd.read_csv("personal/chris_farr/robust_features.csv", index_col=0)
