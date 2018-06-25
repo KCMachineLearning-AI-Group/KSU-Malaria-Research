@@ -100,28 +100,28 @@ len(corr_result)
 # Within each corr group there's an "in" and "out" portion for tracking selection
 corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(range(len(corr_result)), corr_result)])
 
-# # Starting Point A: Read a csv file
-# # Upload a starting point from a csv dataframe with no index
-# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features_interactions.csv")
-# feature_list = list(np.squeeze(feature_df.values))
-# # Find the dict key for each feature and add to the list
-# for feat in feature_list:
-#     for group in corr_dict.keys():
-#         if feat in corr_dict[group]["out"]:
-#             corr_dict[group]["in"].add(feat)
-#             corr_dict[group]["out"].remove(feat)
-#             break
+# Starting Point A: Read a csv file
+# Upload a starting point from a csv dataframe with no index
+feature_df = pd.read_csv("src/models/support/mixed_stepwise_features_interactions.csv")
+feature_list = list(np.squeeze(feature_df.values))
+# Find the dict key for each feature and add to the list
+for feat in feature_list:
+    for group in corr_dict.keys():
+        if feat in corr_dict[group]["out"]:
+            corr_dict[group]["in"].add(feat)
+            corr_dict[group]["out"].remove(feat)
+            break
 
-# Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
-# Start with 100 features
-choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
-for c in choices:
-    # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
-    corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+# # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
+# # Start with 100 features
+# choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
+# for c in choices:
+#     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
+#     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
 
 # Optional
 # Random shuffle to a few features to get unstuck
-shuffle_size = 5
+shuffle_size = 2
 choices = np.random.choice(range(len(corr_dict)), size=shuffle_size, replace=False)
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
@@ -148,6 +148,7 @@ multiplier = 50
 n_jobs = 7
 starting_batch_size = 100
 par = True
+
 
 for i in range(400):
     # Every other loop add/remove
@@ -221,6 +222,20 @@ for i in range(400):
                 k += 1
             if k == batch_size:
                 break
+
+        max_catgories = starting_batch_size + (multiplier * no_improvement_count) > len(corr_dict)
+
+        # Search all features
+        for feat in feature_list:
+            for group in corr_dict.keys():
+                if feat in corr_dict[group]["out"]:
+                    corr_dict[group]["in"].add(feat)
+                    corr_dict[group]["out"].remove(feat)
+                    break
+        #
+        # for corr_group,   in corr_dict.items():
+        #     for
+        # TODO start here, perform exhaustive search
 
         if par:
             # Par Version 1
