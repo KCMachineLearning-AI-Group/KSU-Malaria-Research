@@ -13,3 +13,16 @@ def par_addition(feature_list, in_features, x_train, y_train, model, y_scaler):
         add_dict[feat] = new_score
 
     return add_dict
+
+
+def par_removal(feature_list, in_features, x_train, y_train, model, y_scaler):
+    remove_dict = {}
+    for feat in feature_list:
+        # Evaluate addition and log results
+        test_features = [f for f in list(in_features.keys()) if f != feat]
+        results = ModelValidation().score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
+                                                    pos_split=y_scaler.transform([[2.1]]), verbose=0)
+        new_score = np.mean(results["root_mean_sq_error"])
+        remove_dict[feat] = new_score
+
+    return remove_dict

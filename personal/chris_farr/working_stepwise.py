@@ -50,7 +50,7 @@ from sklearn.metrics import make_scorer, mean_squared_error
 from src.data.data_interactions import InteractionChecker
 import time
 import math
-from personal.chris_farr.stepwise_par_support import par_addition
+from personal.chris_farr.stepwise_par_support import par_addition, par_removal
 from joblib import Parallel, delayed
 
 validation = ModelValidation()
@@ -62,9 +62,24 @@ x_data, y_data = data_class.clean_data(data)
 # TODO add interactions for selected features and continue loop process for adding them to the model
 
 ic = InteractionChecker(alpha=.01)
-feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
-feature_list = list(np.squeeze(feature_df.values))
+corr_threshold = .99
+corr_matrix = x_data.loc[:, x_data.dtypes == "float64"].corr()
+corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
 
+already_in = set()
+corr_result = []
+for col in corr_matrix:
+    correlated = corr_matrix[col][np.abs(corr_matrix[col]) > corr_threshold].index.tolist()
+    if correlated and col not in already_in:
+        already_in.update(set(correlated))
+        correlated.append(col)
+        corr_result.append(correlated)
+    elif col not in already_in:
+        already_in.update(set(col))
+        corr_result.append([col])
+# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+# feature_list = list(np.squeeze(feature_df.values))
+feature_list = [corr_list[0] for corr_list in corr_result]
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 ic.fit(x_train.loc[:, feature_list], y_train)
 interactions = ic.transform(x_data.loc[:, feature_list])
@@ -100,41 +115,42 @@ len(corr_result)
 # Within each corr group there's an "in" and "out" portion for tracking selection
 corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(range(len(corr_result)), corr_result)])
 
-# Starting Point A: Read a csv file
-# Upload a starting point from a csv dataframe with no index
-feature_df = pd.read_csv("src/models/support/mixed_stepwise_features_interactions.csv")
-feature_list = list(np.squeeze(feature_df.values))
-# Find the dict key for each feature and add to the list
-for feat in feature_list:
-    for group in corr_dict.keys():
-        if feat in corr_dict[group]["out"]:
-            corr_dict[group]["in"].add(feat)
-            corr_dict[group]["out"].remove(feat)
-            break
+# # Starting Point A: Read a csv file
+# # Upload a starting point from a csv dataframe with no index
+# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features_interactions.csv")
+# feature_list = list(np.squeeze(feature_df.values))
+# # Find the dict key for each feature and add to the list
+# for feat in feature_list:
+#     for group in corr_dict.keys():
+#         if feat in corr_dict[group]["out"]:
+#             corr_dict[group]["in"].add(feat)
+#             corr_dict[group]["out"].remove(feat)
+#             break
 
-# # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
-# # Start with 100 features
-# choices = np.random.choice(range(len(corr_dict)), size=150, replace=False)
-# for c in choices:
-#     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
-#     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
-
-# Optional
-# Random shuffle to a few features to get unstuck
-shuffle_size = 2
-choices = np.random.choice(range(len(corr_dict)), size=shuffle_size, replace=False)
+# Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
+# Start with 100 features
+np.random.seed(int(time.time()))
+choices = np.random.choice(range(len(corr_dict)), size=125, replace=False)
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
-    if random.randint(0, 100) % 2 == 0:
-        try:
-            corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
-        except Exception as e:
-            print(e)
-    else:
-        try:
-            corr_dict[c]["out"].add(corr_dict[c]["in"].pop())
-        except Exception as e:
-            print(e)
+    corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+
+# # Optional
+# # Random shuffle to a few features to get unstuck
+# shuffle_size = 25
+# choices = np.random.choice(range(len(corr_dict)), size=shuffle_size, replace=False)
+# for c in choices:
+#     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
+#     if random.randint(0, 100) % 2 == 0:
+#         try:
+#             corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
+#         except Exception as e:
+#             print(e)
+#     else:
+#         try:
+#             corr_dict[c]["out"].add(corr_dict[c]["in"].pop())
+#         except Exception as e:
+#             print(e)
 
 
 # Set model for selection
@@ -145,12 +161,13 @@ model = LinearSVR(random_state=0)
 no_improvement_count = 0
 last_benchmark = np.inf
 multiplier = 50
-n_jobs = 7
+n_jobs = 3
 starting_batch_size = 100
 par = True
 
 
-for i in range(400):
+for i in range(500):
+    np.random.seed(int(time.time()))
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
     # Select for removal a random sample up to the size of in_features
@@ -174,7 +191,7 @@ for i in range(400):
     last_benchmark = benchmark
 
     batch_size += multiplier * no_improvement_count
-    if no_improvement_count > 50:
+    if no_improvement_count > 45:
         print("Early stopping....")
         break
 
@@ -182,37 +199,49 @@ for i in range(400):
         # Remove features
         # If no_improvement_count * 5 > len(in_features) then pass (all have been tested already w/o changes)
         if no_improvement_count * multiplier > len(in_features):
+            print("skipping removal")
             continue
         # * Test the individual removal of a number of features, each from a different correlation group.
         # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
         test_feats_for_removal = dict()
         # Choose testing features randomly
-        choices = np.random.choice(range(len(in_features)), min(batch_size, len(in_features)))
+        choices = np.random.choice(range(len(in_features)), size=min(batch_size, len(in_features)), replace=False)
         for i_, feat in enumerate(in_features.keys()):
             if i_ in choices:
                 test_feats_for_removal[feat] = in_features[feat]
 
-        remove_dict = {}
-        for feat, corr_group in test_feats_for_removal.items():  # Loop through dict keys
+        if par:
+            list_size = int(math.ceil(len(test_feats_for_removal) / n_jobs))
+            # Create list of even lists for parallel
+            par_list = [list(test_feats_for_removal)[i:i + list_size]
+                        for i in range(0, len(test_feats_for_removal), list_size)]
+            par_results = Parallel(n_jobs=n_jobs)(
+                delayed(par_removal)(feature_list, in_features, x_train, y_train, model, y_scaler)
+                for feature_list in par_list)
+            remove_dict = dict([(key_, value_) for sub_dict in par_results for key_, value_ in sub_dict.items()])
+        else:
+            remove_dict = {}
+            for feat, corr_group in test_feats_for_removal.items():  # Loop through dict keys
 
-            # Evaluate after removal and log results
-            test_features = [f for f in list(in_features.keys()) if f != feat]
-            results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
-                                                 pos_split=y_scaler.transform([[2.1]]), verbose=0)
-            new_score = np.mean(results["root_mean_sq_error"])
-            remove_dict[feat] = new_score
+                # Evaluate after removal and log results
+                test_features = [f for f in list(in_features.keys()) if f != feat]
+                results = validation.score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
+                                                     pos_split=y_scaler.transform([[2.1]]), verbose=0)
+                new_score = np.mean(results["root_mean_sq_error"])
+                remove_dict[feat] = new_score
 
         # Find the best of those tested
         final_removal = sorted(remove_dict, key=remove_dict.get, reverse=True)[-1]
         # Remove and update corr dict if improves score
-        if remove_dict[final_removal] < benchmark:
+        if (remove_dict[final_removal] < benchmark) | \
+                ((remove_dict[final_removal] < (benchmark + 0.05)) & (no_improvement_count > 20)):
             corr_dict[test_feats_for_removal[final_removal]]["out"].add(final_removal)
             corr_dict[test_feats_for_removal[final_removal]]["in"].remove(final_removal)
 
     if i % 2 == 0:  # Adding a feature
         test_feats_for_addition = dict()
-        # Pick random group
-        choices = np.random.choice(range(len(corr_dict)), batch_size * 10)
+        # Pick random group, set replace=True if lower correlation threshold used for groupings
+        choices = np.random.choice(range(len(corr_dict)), size=batch_size * 10, replace=corr_threshold < .98)
         k = 0
         # Test if any are out and pick one randomly
         for c in choices:
@@ -223,53 +252,15 @@ for i in range(400):
             if k == batch_size:
                 break
 
-        max_catgories = starting_batch_size + (multiplier * no_improvement_count) > len(corr_dict)
-
-        # Search all features
-        for feat in feature_list:
-            for group in corr_dict.keys():
-                if feat in corr_dict[group]["out"]:
-                    corr_dict[group]["in"].add(feat)
-                    corr_dict[group]["out"].remove(feat)
-                    break
-        #
-        # for corr_group,   in corr_dict.items():
-        #     for
-        # TODO start here, perform exhaustive search
-
         if par:
-            # Par Version 1
-            # No helper function, may average to lower performance than par version 2
-            # print("starting par 1:")
-            # start = time.time()
-            add_dict = {}
+            list_size = int(math.ceil(len(test_feats_for_addition) / n_jobs))
+            # Create list of even lists for parallel
+            par_list = [list(test_feats_for_addition)[i:i + list_size]
+                        for i in range(0, len(test_feats_for_addition), list_size)]
             par_results = Parallel(n_jobs=n_jobs)(
-                delayed(validation.score_regressor)(x_train.loc[:, list(in_features) + [feat]],
-                                                    y_train, model, y_scaler,
-                                                    pos_split=y_scaler.transform([[2.1]]),
-                                                    verbose=0) for feat, i_ in test_feats_for_addition.items())
-            # Loop through results, Find the rmse and pair with feature
-            for results, feat in zip(par_results, test_feats_for_addition.keys()):  # par_grouping
-                new_score = np.mean(results["root_mean_sq_error"])
-                add_dict[feat] = new_score
-            # stop = time.time()
-            # print((stop - start))
-
-            # print("starting par 2")
-            # # Par Version 2, uses helper function, may have better load balancing
-            # start = time.time()
-            # list_size = int(math.ceil(len(test_feats_for_addition) / n_jobs))
-            # # Create list of even lists for parallel
-            # par_list = [list(test_feats_for_addition)[i:i + list_size]
-            #             for i in range(0, len(test_feats_for_addition), list_size)]
-            # par_results = Parallel(n_jobs=n_jobs)(
-            #     delayed(par_addition)(feature_list, in_features, x_train, y_train, model, y_scaler)
-            #     for feature_list in par_list)
-            # len(par_results)
-            # add_dict = dict([(key_, value_) for subdict in par_results for key_, value_ in subdict.items()])
-            # stop = time.time()
-            # print((stop - start))
-
+                delayed(par_addition)(feature_list, in_features, x_train, y_train, model, y_scaler)
+                for feature_list in par_list)
+            add_dict = dict([(key_, value_) for sub_dict in par_results for key_, value_ in sub_dict.items()])
         else:
             # Non-parallel
             add_dict = {}
@@ -299,7 +290,7 @@ predictions = y_scaler.inverse_transform(
     model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-selected_features.to_csv("src/models/support/mixed_stepwise_features_interactions.csv", index=False)
+# selected_features.to_csv("src/models/support/mixed_stepwise_features_interactions.csv", index=False)
 
 # TODO run many different times, store the columns select, the test predictions, and the performance scores
 
@@ -315,7 +306,8 @@ test_prediction_df = pd.merge(test_prediction_df, new_test_prediction_df, how="o
 # Create selected features
 new_selected_features_df = pd.DataFrame(columns=[round_name], data=[1] * len(selected_features), index=selected_features.features)
 # selected_features_df = pd.DataFrame(index=x_train.columns)
-selected_features_df = pd.merge(selected_features_df, new_selected_features_df, how="outer", left_index=True, right_index=True).fillna(0).astype(int)
+selected_features_df = pd.merge(selected_features_df, new_selected_features_df, how="outer",
+                                left_index=True, right_index=True).fillna(0).astype(int)
 # Store files
 test_prediction_df.to_csv("personal/chris_farr/robust_predictions.csv")
 selected_features_df.to_csv("personal/chris_farr/robust_features.csv")
