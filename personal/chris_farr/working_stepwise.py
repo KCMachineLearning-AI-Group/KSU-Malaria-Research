@@ -166,7 +166,7 @@ starting_batch_size = 100
 par = True
 
 
-for i in range(500):
+for i in range(300):
     np.random.seed(int(time.time()))
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
@@ -186,26 +186,27 @@ for i in range(500):
         no_improvement_count += 1
     else:
         no_improvement_count = 0
-    print("New Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count,
-          " feats: ", len(in_features))
+    print("\nNew Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count,
+          " feats: ", len(in_features), end="")
     last_benchmark = benchmark
 
     batch_size += multiplier * no_improvement_count
     if no_improvement_count > 45:
-        print("Early stopping....")
+        print("\nEarly stopping....")
         break
 
     if i % 2 != 0:
         # Remove features
         # If no_improvement_count * 5 > len(in_features) then pass (all have been tested already w/o changes)
-        if no_improvement_count * multiplier > len(in_features):
-            print("skipping removal")
+        if (no_improvement_count - 1) * multiplier > len(in_features):
+            print("skipping removal", end="")
             continue
         # * Test the individual removal of a number of features, each from a different correlation group.
         # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
         test_feats_for_removal = dict()
         # Choose testing features randomly
-        choices = np.random.choice(range(len(in_features)), size=min(batch_size, len(in_features)), replace=False)
+        choices = np.random.choice(range(len(in_features)), size=min(len(in_features), batch_size),
+                                   replace=False)
         for i_, feat in enumerate(in_features.keys()):
             if i_ in choices:
                 test_feats_for_removal[feat] = in_features[feat]
@@ -241,7 +242,8 @@ for i in range(500):
     if i % 2 == 0:  # Adding a feature
         test_feats_for_addition = dict()
         # Pick random group, set replace=True if lower correlation threshold used for groupings
-        choices = np.random.choice(range(len(corr_dict)), size=batch_size * 10, replace=corr_threshold < .98)
+        choices = np.random.choice(range(len(corr_dict)), size=min(len(corr_dict), batch_size * 10),
+                                   replace=False)
         k = 0
         # Test if any are out and pick one randomly
         for c in choices:
@@ -290,7 +292,7 @@ predictions = y_scaler.inverse_transform(
     model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
-# selected_features.to_csv("src/models/support/mixed_stepwise_features_interactions.csv", index=False)
+# selected_features.to_csv("src/models/support/best_features.csv", index=False)
 
 # TODO run many different times, store the columns select, the test predictions, and the performance scores
 
@@ -311,73 +313,6 @@ selected_features_df = pd.merge(selected_features_df, new_selected_features_df, 
 # Store files
 test_prediction_df.to_csv("personal/chris_farr/robust_predictions.csv")
 selected_features_df.to_csv("personal/chris_farr/robust_features.csv")
-
-"""
-with 3 splits and 10 repeats
-average r2_score: 0.9444898240679163
-average root_mean_sq_error: 6.599426503362611
-average explained_variance: 0.9529389554386497
-average mean_sq_error: 47.53500411504506
-average mean_ae: 5.011080004708307
-average median_ae: 4.037490339305328
-
-with 3 splits and 10 repeats
-average r2_score: 0.9555241154896782
-average root_mean_sq_error: 5.794542669371337
-average explained_variance: 0.9631871015751845
-average mean_sq_error: 38.54550842020435
-average mean_ae: 4.246830260782811
-average median_ae: 3.168010696278745
-
-with 3 splits and 10 repeats
-average r2_score: 0.9585861342532347
-average root_mean_sq_error: 5.5830968568156
-average explained_variance: 0.9662721109868795
-average mean_sq_error: 35.725353411918256
-average mean_ae: 4.037905594027995
-average median_ae: 2.8400047455231103
-
-
-"""
-
-"""
-Non-linear transformations added, started over
-
-with 3 splits and 10 repeats
-average r2_score: 0.9692269177991055
-average root_mean_sq_error: 4.510349621318988
-average explained_variance: 0.9732512433123808
-average mean_sq_error: 23.24435271307241
-average mean_ae: 3.4382322072605125
-average median_ae: 2.712202668633315
-
-with 3 splits and 10 repeats
-average r2_score: 0.9700143727174664
-average root_mean_sq_error: 4.430248948092821
-average explained_variance: 0.974132617465656
-average mean_sq_error: 22.62275261201872
-average mean_ae: 3.3568956545556157
-average median_ae: 2.5991535583753516
-
-The test results showed the model overfit the training data. Results were in a wide range.
-
-"""
-
-"""
-Adding interactions
-
-with 3 splits and 10 repeats
-average r2_score: 0.961638538591749
-average root_mean_sq_error: 5.360477194226963
-average explained_variance: 0.9686321828419017
-average mean_sq_error: 33.311014135739384
-average mean_ae: 3.8121487771082276
-average median_ae: 2.5917262295560732
-
-Promising test results too
-
-
-"""
 
 # TODO After optimal is found, are there any groups with many features included? (highly correlated)
 # TODO How do the results vary when using higher vs lower correlation groups? (95 vs 99)
