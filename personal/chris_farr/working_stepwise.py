@@ -130,7 +130,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
 # Start with 100 features
 np.random.seed(int(time.time()))
-choices = np.random.choice(range(len(corr_dict)), size=125, replace=False)
+choices = np.random.choice(range(len(corr_dict)), size=5, replace=False)
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
@@ -166,12 +166,11 @@ starting_batch_size = 100
 par = True
 
 
-for i in range(300):
+for i in range(5):
     np.random.seed(int(time.time()))
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
     # Select for removal a random sample up to the size of in_features
-    # TODO add parallel if no improve for > 10
 
     batch_size = starting_batch_size
 
@@ -187,7 +186,7 @@ for i in range(300):
     else:
         no_improvement_count = 0
     print("\nNew Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count,
-          " feats: ", len(in_features), end="")
+          " feats: ", len(in_features), end="", flush=True)
     last_benchmark = benchmark
 
     batch_size += multiplier * no_improvement_count
@@ -199,7 +198,7 @@ for i in range(300):
         # Remove features
         # If no_improvement_count * 5 > len(in_features) then pass (all have been tested already w/o changes)
         if (no_improvement_count - 1) * multiplier > len(in_features):
-            print(" ....skipping removal", end="")
+            print(" ....skipping removal", end="", flush=True)
             continue
         # * Test the individual removal of a number of features, each from a different correlation group.
         # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
