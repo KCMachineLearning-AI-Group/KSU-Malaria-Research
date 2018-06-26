@@ -199,7 +199,7 @@ for i in range(300):
         # Remove features
         # If no_improvement_count * 5 > len(in_features) then pass (all have been tested already w/o changes)
         if (no_improvement_count - 1) * multiplier > len(in_features):
-            print("skipping removal", end="")
+            print(" ....skipping removal", end="")
             continue
         # * Test the individual removal of a number of features, each from a different correlation group.
         # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
