@@ -136,3 +136,5 @@ src/data/cached_data/*
 
 !personal/chris_farr/robust_predictions.csv
 !personal/chris_farr/robust_features.csv
+!personal/chris_farr/linear_regression_predictions.csv
+!personal/chris_farr/linear_regression_features.csv
