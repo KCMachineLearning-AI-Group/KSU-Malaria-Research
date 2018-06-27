@@ -124,6 +124,7 @@ venv.bak/
 !src/data/cached_data/.gitkeep
 src/data/cached_data/*
 
+!src/models/support/best_features.csv
 !src/models/support/mixed_stepwise_features.csv
 !src/models/support/mixed_stepwise_features_interactions.csv
 !src/models/support/mixed_stepwise_features_non_linear.csv
