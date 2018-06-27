@@ -168,7 +168,7 @@ no_improvement_count = 0
 last_benchmark = np.inf
 multiplier = 100
 n_jobs = 3
-starting_batch_size = 250
+starting_batch_size = 50
 par = True  # cpu_count
 
 
