@@ -131,7 +131,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
 # Start with 100 features
 np.random.seed(int(time.time()))
-choices = np.random.choice(range(len(corr_dict)), size=2, replace=False)
+choices = np.random.choice(range(len(corr_dict)), size=125, replace=False)
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
@@ -155,24 +155,28 @@ for c in choices:
 
 
 # Set model for selection
-from sklearn.linear_model import LinearRegression, Lasso, Ridge
+from sklearn.svm import SVR
 # model = LinearSVR(random_state=0)
 # model = LinearRegression()
+model = SVR()
 # model = Lasso()
-model = Ridge()
+# model = Ridge()
 # TODO tune lasso and ridge using linear regression features before running
 # pprint.pprint(corr_dict)
 
 no_improvement_count = 0
 last_benchmark = np.inf
 multiplier = 100
-n_jobs = 7
-starting_batch_size = 500
+n_jobs = 3
+starting_batch_size = 250
 par = True  # cpu_count
 
 
-for i in range(100):
+for i in range(200):
     np.random.seed(int(time.time()))
+
+    # TODO tune after each round? Or every few rounds?
+
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
     # Select for removal a random sample up to the size of in_features
@@ -201,8 +205,8 @@ for i in range(100):
 
     if i % 2 != 0:
         # Remove features
-        # If no_improvement_count * 5 > len(in_features) then pass (all have been tested already w/o changes)
-        if (no_improvement_count - 1) * multiplier > len(in_features):
+        # If True then pass (all have been tested already w/o changes)
+        if no_improvement_count > 0 & (no_improvement_count - 2) * multiplier + starting_batch_size > len(in_features):
             print(" ....skipping removal", end="", flush=True)
             continue
         # * Test the individual removal of a number of features, each from a different correlation group.
@@ -285,9 +289,7 @@ for i in range(100):
 
 # Final scoring and storage
 in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
-
 # Final validation
-model = LinearSVR(random_state=0)
 np.set_printoptions(suppress=True)
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
@@ -302,21 +304,21 @@ selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
 # Set name for round
 round_name = "{}_feats_{:.2f}_rmse".format(len(in_features), np.mean(results["root_mean_sq_error"]))
 # Read files
-test_prediction_df = pd.read_csv("personal/chris_farr/linear_regression_predictions.csv", index_col=0)
-selected_features_df = pd.read_csv("personal/chris_farr/linear_regression_features.csv", index_col=0)
+test_prediction_df = pd.read_csv("personal/chris_farr/non_linear_svm_predictions.csv", index_col=0)
+selected_features_df = pd.read_csv("personal/chris_farr/non_linear_svm_features.csv", index_col=0)
 # Add data
 # Create test predictions df
 new_test_prediction_df = pd.DataFrame(columns=[round_name], data=predictions, index=x_test.index)
 test_prediction_df = pd.merge(test_prediction_df, new_test_prediction_df, how="outer", left_index=True, right_index=True)
-# test_prediction_df = new_test_prediction_df
+# test_prediction_df = new_test_prediction_df  # For first run
 # Create selected features
 new_selected_features_df = pd.DataFrame(columns=[round_name], data=[1] * len(selected_features), index=selected_features.features)
-# selected_features_df = pd.DataFrame(index=x_train.columns)
+# selected_features_df = pd.DataFrame(index=x_train.columns)  # For first run
 selected_features_df = pd.merge(selected_features_df, new_selected_features_df, how="outer",
                                 left_index=True, right_index=True).fillna(0).astype(int)
 # Store files
-test_prediction_df.to_csv("personal/chris_farr/linear_regression_predictions.csv")
-selected_features_df.to_csv("personal/chris_farr/linear_regression_features.csv")
+test_prediction_df.to_csv("personal/chris_farr/non_linear_svm_predictions.csv")
+selected_features_df.to_csv("personal/chris_farr/non_linear_svm_features.csv")
 
 # TODO After optimal is found, are there any groups with many features included? (highly correlated)
 # TODO How do the results vary when using higher vs lower correlation groups? (95 vs 99)
