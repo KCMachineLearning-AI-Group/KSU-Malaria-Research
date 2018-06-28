@@ -78,15 +78,30 @@ for col in corr_matrix:
     elif col not in already_in:
         already_in.update(set(col))
         corr_result.append([col])
-# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
-# feature_list = list(np.squeeze(feature_df.values))
-feature_list = [corr_list[0] for corr_list in corr_result]
+feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+feature_list = list(np.squeeze(feature_df.values))
+# feature_list = [corr_list[0] for corr_list in corr_result]
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 ic.fit(x_train.loc[:, feature_list], y_train)
 interactions = ic.transform(x_data.loc[:, feature_list])
 
 # Combine x_data and interactions
 x_data = pd.merge(x_data, interactions, left_index=True, right_index=True)
+
+# Add some non-linear transformations
+# Final for float range(0, 1): log, sqrt, cube, square
+for feat in x_data.columns[x_data.dtypes == 'float64']:
+    # if "*" in feat:  # Optional: Avoid transformations on interactions
+    #     continue
+    feature_df = x_data.loc[:, feat]
+    if feature_df.min() > 0:  # Avoid 0 or negative
+        x_data.loc[:, feat + "_log"] = feature_df.apply(np.log)  # log
+        x_data.loc[:, feat + "_sqrt"] = feature_df.apply(np.sqrt)  # square root
+    if feature_df.max() < 100:
+        x_data.loc[:, feat + "_cube"] = feature_df.apply(
+            lambda x: np.power(x, 3))  # cube
+    if feature_df.max() < 1000:
+        x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
 
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 
@@ -118,7 +133,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 
 # # Starting Point A: Read a csv file
 # # Upload a starting point from a csv dataframe with no index
-# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features_interactions.csv")
+# feature_df = pd.read_csv("src/models/support/best_features.csv")
 # feature_list = list(np.squeeze(feature_df.values))
 # # Find the dict key for each feature and add to the list
 # for feat in feature_list:
@@ -131,7 +146,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
 # Start with 100 features
 np.random.seed(int(time.time()))
-choices = np.random.choice(range(len(corr_dict)), size=125, replace=False)
+choices = np.random.choice(range(len(corr_dict)), size=8, replace=False)
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
@@ -155,24 +170,40 @@ for c in choices:
 
 
 # Set model for selection
-from sklearn.svm import SVR
-# model = LinearSVR(random_state=0)
+# from sklearn.svm import SVR
+# from sklearn.linear_model import Ridge, Lasso, LinearRegression
+# from sklearn.model_selection import GridSearchCV
+# from src.model_validation import ModelValidation
+model = LinearSVR(random_state=0)
 # model = LinearRegression()
-model = SVR()
+# model = SVR(kernel="sigmoid")
 # model = Lasso()
 # model = Ridge()
 # TODO tune lasso and ridge using linear regression features before running
 # pprint.pprint(corr_dict)
 
+# Take the last best alpha and create range from it +-.01 with 2-3 steps
+
+# Tune original model
+# params = {
+#     "alpha": np.linspace(0.01, 1., 20)
+# }
+# cv = ModelValidation().get_cv(x_train, y_train, pos_split=y_scaler.transform([[2.1]]))
+# grid = GridSearchCV(model, params, scoring=make_scorer(mean_squared_error, greater_is_better=False), cv=cv)
+# in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
+# grid.fit(x_train.loc[:, in_features], y_train)
+# model = grid.best_estimator_
+# best_params = grid.best_params_
+
 no_improvement_count = 0
 last_benchmark = np.inf
-multiplier = 100
+multiplier = 500
 n_jobs = 3
-starting_batch_size = 50
+starting_batch_size = 1000
 par = True  # cpu_count
 
 
-for i in range(200):
+for i in range(100):
     np.random.seed(int(time.time()))
 
     # TODO tune after each round? Or every few rounds?
@@ -186,8 +217,19 @@ for i in range(200):
     # Extract selected features from corr_dict, create new dict with feat as key and group as value
     in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in group["in"]])
 
+    # Setup tuning support
+    # alpha_steps = 5
+    # max_alpha = min(best_params["alpha"] + .1, 1)
+    # min_alpha = max(best_params["alpha"] - .1, 0)
+    # params["alpha"] = np.linspace(min_alpha, max_alpha, alpha_steps)
+    # Tune model with new features
+    # grid = GridSearchCV(model, params, scoring=make_scorer(mean_squared_error, greater_is_better=False), cv=cv)
+    # grid.fit(x_train.loc[:, in_features], y_train)
+    # best_params = grid.best_params_
+    # model = grid.best_estimator_
+
     # Measure model benchmark
-    benchmark = validation.score_regressor(x_train.loc[:, in_features.keys()], y_train, model, y_scaler,
+    benchmark = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
     benchmark = np.mean(benchmark["root_mean_sq_error"])
     if benchmark >= last_benchmark:
@@ -206,6 +248,7 @@ for i in range(200):
     if i % 2 != 0:
         # Remove features
         # If True then pass (all have been tested already w/o changes)
+        # TODO why doesn't this work now?
         if no_improvement_count > 0 & (no_improvement_count - 2) * multiplier + starting_batch_size > len(in_features):
             print(" ....skipping removal", end="", flush=True)
             continue
@@ -293,8 +336,11 @@ in_features = dict([(feat, i) for i, group in corr_dict.items() for feat in grou
 np.set_printoptions(suppress=True)
 results = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                      pos_split=y_scaler.transform([[2.1]]))
+
 predictions = y_scaler.inverse_transform(
     model.fit(x_train.loc[:, in_features], y_train).predict(x_test.loc[:, in_features]))
+predictions[2]
+
 # Save the feature names in a csv
 selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
 # selected_features.to_csv("src/models/support/best_features.csv", index=False)
@@ -304,8 +350,8 @@ selected_features = pd.DataFrame(list(in_features.keys()), columns=["features"])
 # Set name for round
 round_name = "{}_feats_{:.2f}_rmse".format(len(in_features), np.mean(results["root_mean_sq_error"]))
 # Read files
-test_prediction_df = pd.read_csv("personal/chris_farr/non_linear_svm_predictions.csv", index_col=0)
-selected_features_df = pd.read_csv("personal/chris_farr/non_linear_svm_features.csv", index_col=0)
+test_prediction_df = pd.read_csv("personal/chris_farr/ridge_predictions.csv", index_col=0)
+selected_features_df = pd.read_csv("personal/chris_farr/ridge_features.csv", index_col=0)
 # Add data
 # Create test predictions df
 new_test_prediction_df = pd.DataFrame(columns=[round_name], data=predictions, index=x_test.index)
