@@ -23,9 +23,9 @@ leaderboard_regressors = [
     ModelMixedStepwise(),
     ModelBestSVR(),
     # ModelMyModel(),
-    # ModelLinearReg(),
-    # ModelSGDRegressor(),
-    # ModelLinearSVR()
+    ModelLinearReg(),
+    ModelSGDRegressor(),
+    ModelLinearSVR()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []
