@@ -4,6 +4,7 @@ from src.models.model_linear_reg import ModelLinearReg
 from src.models.model_sgd_regression import ModelSGDRegressor
 from src.models.model_mixed_stepwise import ModelMixedStepwise
 from src.models.model_linear_svr import ModelLinearSVR
+from src.models.model_best_svr import ModelBestSVR
 from src.model_validation import ModelValidation
 import numpy as np
 np.set_printoptions(suppress=True)
@@ -20,7 +21,8 @@ validation = ModelValidation()
 
 leaderboard_regressors = [
     ModelMixedStepwise(),
-    ModelMyModel(),
+    ModelBestSVR(),
+    # ModelMyModel(),
     ModelLinearReg(),
     ModelSGDRegressor(),
     ModelLinearSVR()
