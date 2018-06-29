@@ -81,6 +81,7 @@ for col in corr_matrix:
 feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
 feature_list = list(np.squeeze(feature_df.values))
 # feature_list = [corr_list[0] for corr_list in corr_result]
+
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 ic.fit(x_train.loc[:, feature_list], y_train)
 interactions = ic.transform(x_data.loc[:, feature_list])
@@ -109,6 +110,7 @@ x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 
 # Group correlated features
 corr_threshold = .99
+
 corr_matrix = x_train.corr()
 corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
 
@@ -134,6 +136,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 # # Starting Point A: Read a csv file
 # # Upload a starting point from a csv dataframe with no index
 # feature_df = pd.read_csv("src/models/support/best_features.csv")
+
 # feature_list = list(np.squeeze(feature_df.values))
 # # Find the dict key for each feature and add to the list
 # for feat in feature_list:
@@ -147,6 +150,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 # Start with 100 features
 np.random.seed(int(time.time()))
 choices = np.random.choice(range(len(corr_dict)), size=8, replace=False)
+
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
@@ -212,6 +216,7 @@ for i in range(100):
     # Select for add by correlation group, one from random selection of them
     # Select for removal a random sample up to the size of in_features
 
+
     batch_size = starting_batch_size
 
     # Extract selected features from corr_dict, create new dict with feat as key and group as value
@@ -232,10 +237,12 @@ for i in range(100):
     benchmark = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
     benchmark = np.mean(benchmark["root_mean_sq_error"])
+
     if benchmark >= last_benchmark:
         no_improvement_count += 1
     else:
         no_improvement_count = 0
+        
     print("\nNew Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count,
           " feats: ", len(in_features), end="", flush=True)
     last_benchmark = benchmark
@@ -249,7 +256,7 @@ for i in range(100):
         # Remove features
         # If True then pass (all have been tested already w/o changes)
         # TODO why doesn't this work now?
-        if no_improvement_count > 0 & (no_improvement_count - 2) * multiplier + starting_batch_size > len(in_features):
+        if no_improvement_count > 0 & (no_improvement_count - 1) * multiplier + starting_batch_size > len(in_features):
             print(" ....skipping removal", end="", flush=True)
             continue
         # * Test the individual removal of a number of features, each from a different correlation group.
@@ -261,7 +268,7 @@ for i in range(100):
         for i_, feat in enumerate(in_features.keys()):
             if i_ in choices:
                 test_feats_for_removal[feat] = in_features[feat]
-
+                
         if par:
             list_size = int(math.ceil(len(test_feats_for_removal) / n_jobs))
             # Create list of even lists for parallel

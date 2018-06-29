@@ -76,6 +76,7 @@ class ModelValidation(ValidationAbstract):
             scoring_dict["root_mean_sq_error"].append(sqrt(mean_squared_error(y_test, y_)))
             scoring_dict["mean_absolute_error"].append(mean_absolute_error(y_test, y_))
             scoring_dict["median_absolute_error"].append(median_absolute_error(y_test, y_))
+            
         if verbose == 1:
             # Print contents of dictionary except confusion matrix
             # create y_class series for Stratified K-Fold split at pos_split
