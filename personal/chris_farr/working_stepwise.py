@@ -78,10 +78,9 @@ for col in corr_matrix:
     elif col not in already_in:
         already_in.update(set(col))
         corr_result.append([col])
-feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
-feature_list = list(np.squeeze(feature_df.values))
-# feature_list = [corr_list[0] for corr_list in corr_result]
-
+# feature_df = pd.read_csv("src/models/support/mixed_stepwise_features.csv")
+# feature_list = list(np.squeeze(feature_df.values))
+feature_list = [corr_list[0] for corr_list in corr_result]
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 ic.fit(x_train.loc[:, feature_list], y_train)
 interactions = ic.transform(x_data.loc[:, feature_list])
@@ -91,18 +90,18 @@ x_data = pd.merge(x_data, interactions, left_index=True, right_index=True)
 
 # Add some non-linear transformations
 # Final for float range(0, 1): log, sqrt, cube, square
-for feat in x_data.columns[x_data.dtypes == 'float64']:
-    # if "*" in feat:  # Optional: Avoid transformations on interactions
-    #     continue
-    feature_df = x_data.loc[:, feat]
-    if feature_df.min() > 0:  # Avoid 0 or negative
-        x_data.loc[:, feat + "_log"] = feature_df.apply(np.log)  # log
-        x_data.loc[:, feat + "_sqrt"] = feature_df.apply(np.sqrt)  # square root
-    if feature_df.max() < 100:
-        x_data.loc[:, feat + "_cube"] = feature_df.apply(
-            lambda x: np.power(x, 3))  # cube
-    if feature_df.max() < 1000:
-        x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
+# for feat in x_data.columns[x_data.dtypes == 'float64']:
+#     # if "*" in feat:  # Optional: Avoid transformations on interactions
+#     #     continue
+#     feature_df = x_data.loc[:, feat]
+#     if feature_df.min() > 0:  # Avoid 0 or negative
+#         x_data.loc[:, feat + "_log"] = feature_df.apply(np.log)  # log
+#         x_data.loc[:, feat + "_sqrt"] = feature_df.apply(np.sqrt)  # square root
+#     if feature_df.max() < 100:
+#         x_data.loc[:, feat + "_cube"] = feature_df.apply(
+#             lambda x: np.power(x, 3))  # cube
+#     if feature_df.max() < 1000:
+#         x_data.loc[:, feat + "_sq"] = feature_df.apply(np.square)  # square
 
 x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 
@@ -110,7 +109,6 @@ x_train, x_test, y_train, y_scaler = data_class.test_train_split(x_data, y_data)
 
 # Group correlated features
 corr_threshold = .99
-
 corr_matrix = x_train.corr()
 corr_matrix.loc[:, :] = np.tril(corr_matrix, k=-1)
 
@@ -136,7 +134,6 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 # # Starting Point A: Read a csv file
 # # Upload a starting point from a csv dataframe with no index
 # feature_df = pd.read_csv("src/models/support/best_features.csv")
-
 # feature_list = list(np.squeeze(feature_df.values))
 # # Find the dict key for each feature and add to the list
 # for feat in feature_list:
@@ -149,8 +146,7 @@ corr_dict = dict([(i, {"out": set(feats), "in": set([])}) for i, feats in zip(ra
 # Starting Point B: randomly select features from half of the correlation groups (or arbitrary number of them)
 # Start with 100 features
 np.random.seed(int(time.time()))
-choices = np.random.choice(range(len(corr_dict)), size=8, replace=False)
-
+choices = np.random.choice(range(len(corr_dict)), size=10, replace=False)
 for c in choices:
     # if not len(corr_dict[c]["out"]):  # Ensure there are more to add from group
     corr_dict[c]["in"].add(corr_dict[c]["out"].pop())
@@ -174,15 +170,12 @@ for c in choices:
 
 
 # Set model for selection
-# from sklearn.svm import SVR
-# from sklearn.linear_model import Ridge, Lasso, LinearRegression
-# from sklearn.model_selection import GridSearchCV
-# from src.model_validation import ModelValidation
-model = LinearSVR(random_state=0)
-# model = LinearRegression()
-# model = SVR(kernel="sigmoid")
-# model = Lasso()
-# model = Ridge()
+from sklearn.svm import SVR
+from sklearn.linear_model import Ridge, Lasso, LinearRegression
+from sklearn.model_selection import GridSearchCV
+from src.model_validation import ModelValidation
+model = LinearSVR(random_state=0, dual=False, loss="squared_epsilon_insensitive")
+
 # TODO tune lasso and ridge using linear regression features before running
 # pprint.pprint(corr_dict)
 
@@ -190,7 +183,8 @@ model = LinearSVR(random_state=0)
 
 # Tune original model
 # params = {
-#     "alpha": np.linspace(0.01, 1., 20)
+#     "epsilon": np.linspace(0.01, 0.1, 5),
+#     "C": np.linspace(0.5, 1.0, 10)
 # }
 # cv = ModelValidation().get_cv(x_train, y_train, pos_split=y_scaler.transform([[2.1]]))
 # grid = GridSearchCV(model, params, scoring=make_scorer(mean_squared_error, greater_is_better=False), cv=cv)
@@ -201,10 +195,10 @@ model = LinearSVR(random_state=0)
 
 no_improvement_count = 0
 last_benchmark = np.inf
-multiplier = 500
-n_jobs = 3
-starting_batch_size = 1000
-par = True  # cpu_count
+multiplier = 100
+n_jobs = 7
+starting_batch_size = 500
+par = True
 
 
 for i in range(100):
@@ -215,7 +209,6 @@ for i in range(100):
     # Every other loop add/remove
     # Select for add by correlation group, one from random selection of them
     # Select for removal a random sample up to the size of in_features
-
 
     batch_size = starting_batch_size
 
@@ -237,12 +230,10 @@ for i in range(100):
     benchmark = validation.score_regressor(x_train.loc[:, in_features], y_train, model, y_scaler,
                                            pos_split=y_scaler.transform([[2.1]]), verbose=0)
     benchmark = np.mean(benchmark["root_mean_sq_error"])
-
     if benchmark >= last_benchmark:
         no_improvement_count += 1
     else:
         no_improvement_count = 0
-        
     print("\nNew Benchmark RMSE:", '{0:.2f}'.format(benchmark), " iteration: ", i, " no improve: ", no_improvement_count,
           " feats: ", len(in_features), end="", flush=True)
     last_benchmark = benchmark
@@ -256,7 +247,7 @@ for i in range(100):
         # Remove features
         # If True then pass (all have been tested already w/o changes)
         # TODO why doesn't this work now?
-        if no_improvement_count > 0 & (no_improvement_count - 1) * multiplier + starting_batch_size > len(in_features):
+        if no_improvement_count > 0 & (no_improvement_count - 2) * multiplier + starting_batch_size > len(in_features):
             print(" ....skipping removal", end="", flush=True)
             continue
         # * Test the individual removal of a number of features, each from a different correlation group.
@@ -268,7 +259,7 @@ for i in range(100):
         for i_, feat in enumerate(in_features.keys()):
             if i_ in choices:
                 test_feats_for_removal[feat] = in_features[feat]
-                
+
         if par:
             list_size = int(math.ceil(len(test_feats_for_removal) / n_jobs))
             # Create list of even lists for parallel

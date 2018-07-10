@@ -23,9 +23,9 @@ leaderboard_regressors = [
     ModelMixedStepwise(),
     ModelBestSVR(),
     # ModelMyModel(),
-    ModelLinearReg(),
-    ModelSGDRegressor(),
-    ModelLinearSVR()
+    # ModelLinearReg(),
+    # ModelSGDRegressor(),
+    # ModelLinearSVR()
     # TODO add additional regression implementations
 ]
 leaderboard_reg_scores = []
@@ -41,11 +41,21 @@ def score():
             pos_split=y_scaler.transform([[2.1]])
         )
         leaderboard_reg_scores.append(validation_result)
+        print("\nTrain Prediction:")
+        for compound in y_train.index:
+            print("{:<10}".format(compound),
+                  ": ",
+                  "{0:>5.2f}".format(validation_result["cv_predict"][compound]),
+                  " actual: ",
+                  "{0:>5.2f}".format(y_scaler.inverse_transform([[y_train.loc[compound]]])[0][0]))
+        print("\n")
         print("\nTest Prediction:")
         # print(y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_test)))
         predictions = y_scaler.inverse_transform(model.fit(x_train, y_train).predict(x_test))
         for compound, pred in zip(x_test.index, predictions):
-            print("{:<10}".format(compound), ": ", '{0:>5.2f}'.format(pred))
+            print("{:<10}".format(compound),
+                  ": ",
+                  "{0:>5.2f}".format(pred))
         print("\n")
 
 
