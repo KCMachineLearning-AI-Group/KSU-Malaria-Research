@@ -4,6 +4,7 @@ from sklearn.metrics import r2_score, explained_variance_score
 from sklearn.metrics import mean_absolute_error, mean_squared_error, median_absolute_error
 from numpy import sqrt, mean
 from pandas import DataFrame, Series
+from sklearn.base import clone
 
 from src.validation_abstract import ValidationAbstract
 
@@ -60,6 +61,8 @@ class ModelValidation(ValidationAbstract):
         # Order dictionary
         order_dict = {"r2_score": 0, "explained_variance": 1, "mean_sq_error": 2, "root_mean_sq_error": 3,
                       "mean_absolute_error": 4, "median_absolute_error": 5}
+
+        error_model = clone(model)
         # loop through splits
         for train, test in self.get_cv(x_data, y_data, pos_split=pos_split):
             x_train, x_test = x_data.iloc[train, :], x_data.iloc[test, :]
@@ -76,7 +79,11 @@ class ModelValidation(ValidationAbstract):
             scoring_dict["root_mean_sq_error"].append(sqrt(mean_squared_error(y_test, y_)))
             scoring_dict["mean_absolute_error"].append(mean_absolute_error(y_test, y_))
             scoring_dict["median_absolute_error"].append(median_absolute_error(y_test, y_))
-            
+
+            #prediction interval error model
+            validation_error = (y_ - y_test) ** 2
+            error_model.fit(x_test, validation_error)
+
         if verbose == 1:
             # Print contents of dictionary except confusion matrix
             # create y_class series for Stratified K-Fold split at pos_split
@@ -89,7 +96,7 @@ class ModelValidation(ValidationAbstract):
                     continue
                 else:
                     print("average {:<25}".format(metric), ": {:.3f}".format(mean(scoring_dict[metric])))
-        return scoring_dict
+        return scoring_dict, error_model
 
     def score_classifier(self, x_data, y_data, model, add_train_data=None, verbose=1, cls_report=False):
         """
