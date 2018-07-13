@@ -13,7 +13,7 @@ class ModelValidation(ValidationAbstract):
     RANDOM_STATE = 36851234
     REPEATS = 10
 
-    def get_cv(self, x_data, y_data, pos_split=10):
+    def get_cv(self, x_data, y_data, pos_split=10, random_state=False):
         """
         Standardized splits to use for validation.
         May also be useful for GridSearchCV in model classes, use result as argument to cv.
@@ -29,12 +29,18 @@ class ModelValidation(ValidationAbstract):
         # num_splits count number of positive examples
         num_splits = sum(y_class.values)
         # create splits using stratified kfold
-        rskf = RepeatedStratifiedKFold(n_splits=num_splits, n_repeats=self.REPEATS, random_state=self.RANDOM_STATE)
+        if random_state:
+            rskf = RepeatedStratifiedKFold(n_splits=num_splits, 
+                                           n_repeats=self.REPEATS, 
+                                           random_state=self.RANDOM_STATE)
+        else:
+            rskf = RepeatedStratifiedKFold(n_splits=num_splits,
+                                           n_repeats=self.REPEATS)
         # loop through splits
         cv = [(train, test) for train, test in rskf.split(x_data, y_class)]
         return cv
 
-    def score_regressor(self, x_data, y_data, model, y_scaler, add_train_data=None, verbose=1, pos_split=10):
+    def score_regressor(self, x_data, y_data, model, y_scaler, add_train_data=None, verbose=1, pos_split=10, random_state=False):
         """
         Model validation for producing comparable model evaluation. Uses Stratified K-Fold LOOCV adapted
         for regression with the positive equivalent <10 IC50, producing 5 folds.
@@ -63,7 +69,7 @@ class ModelValidation(ValidationAbstract):
         # Cross Validated Prediction
         cv_predict = dict([(i_, 0) for i_ in x_data.index])
         # loop through splits
-        for train, test in self.get_cv(x_data, y_data, pos_split=pos_split):
+        for train, test in self.get_cv(x_data, y_data, pos_split=pos_split, random_state=random_state):
             x_train, x_test = x_data.iloc[train, :], x_data.iloc[test, :]
             y_train, y_test = y_data.iloc[train], y_data.iloc[test]
             # train model, test model with all scoring parameters
