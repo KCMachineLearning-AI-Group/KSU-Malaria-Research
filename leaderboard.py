@@ -3,13 +3,19 @@ from src.models.model_correlation_grouper import ModelCorrelationGrouper
 from src.models.model_linear_reg import ModelLinearReg
 from src.models.model_sgd_regression import ModelSGDRegressor
 from src.models.model_mixed_stepwise import ModelMixedStepwise
+from src.models.model_mixed_stepwise_baseline import ModelMixedStepwiseBaseline
 from src.models.model_linear_svr import ModelLinearSVR
 from src.models.model_best_svr import ModelBestSVR
+from src.models.model_best_svr_baseline import ModelBestSVRBaseline
 from src.model_validation import ModelValidation
 from src.analysis.statistics import confidence_interval
-import numpy as np
-np.set_printoptions(suppress=True)
 from collections import defaultdict
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import pickle
+np.set_printoptions(suppress=True)
+
 
 """
 Standard leaderboard.py implementation
@@ -23,7 +29,9 @@ validation = ModelValidation()
 
 leaderboard_regressors = [
     ModelMixedStepwise(),
+    ModelMixedStepwiseBaseline(),
     ModelBestSVR(),
+    ModelBestSVRBaseline()
     # ModelMyModel(),
     # ModelLinearReg(),
     # ModelSGDRegressor(),
@@ -41,7 +49,7 @@ def score():
         validation_result = validation.score_regressor(
             x_train, y_train, model, y_scaler,
             pos_split=y_scaler.transform([[2.1]]),
-            random_state=True
+            random_state=True #same output if looped
         )
         leaderboard_reg_scores.append(validation_result)
             
@@ -64,16 +72,25 @@ def score():
 
 
 def get_confidence():
+    
+    
+    ci_df = pd.read_csv("confidence.csv")
+    print(ci_df)
+    
+    
+    """
+    ci_df = pd.DataFrame(columns=["model","metric","lower", "upper"])
+    index=0
     ci=defaultdict(list)
     for model_class in leaderboard_regressors:
-        print("Running %s" % model_class.__class__.__name__ + "....\n")
-        print("\nScore Summary:")
-        
+        print ("Obtaining Confidence Intervals for %s" %model_class.__class__.__name__)
         for i in range(10):
             x_train, x_test, y_train, y_scaler, model = model_class.get_validation_support()
             validation_result = validation.score_regressor(
                 x_train, y_train, model, y_scaler,
-                pos_split=y_scaler.transform([[2.1]])
+                pos_split=y_scaler.transform([[2.1]]),
+                random_state=False, #random output if looped
+                verbose=0
             )
             for metric in ['r2_score',
                                      'root_mean_sq_error',
@@ -84,12 +101,22 @@ def get_confidence():
                 ci[model_class.__class__.__name__+"_"+metric].append(np.mean(validation_result[metric]))
             leaderboard_reg_scores.append(validation_result)
         
-    print("~~~~")
     for k,v in ci.items():
         ci[k]=confidence_interval(ci[k], confidence=0.95)
-        print(k,ci[k])
-    input("...")
+        model = k.split("_")[0]
+        metric = '_'.join(k.split("_")[1:])
+        lower = ci[k][0]
+        upper = ci[k][1]
+        ci_df.loc[index]=[model, metric, lower, upper]
+        index+=1    
     
+    
+    
+    
+    
+    ci_df.to_csv("confidence.csv", sep=",")
+    print(ci_df)
+    """
     # Now get CI for models with all features
     # Determine if p0 < pA
     
