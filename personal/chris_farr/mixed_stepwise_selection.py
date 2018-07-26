@@ -77,7 +77,7 @@ class MixedStepSelect:
                 self.add_feature(x_train, y_train, y_scaler, batch_size)
             else:
                 last_removal_n = ((self.no_improvement_count - 2) * self.multiplier) + self.starting_batch_size
-                if self.no_improvement_count > 0 and last_removal_n > len(self.in_features):
+                if self.no_improvement_count > 1 and last_removal_n > len(self.in_features):
                     print(" ....skipping removal", end="", flush=True)
                     continue
                 self.remove_feature(x_train, y_train, y_scaler, batch_size)
@@ -151,10 +151,6 @@ class MixedStepSelect:
         return
 
     def remove_feature(self, x_train, y_train, y_scaler, batch_size):
-        # Remove features
-        # If True then pass (all have been tested already w/o changes)
-        # TODO why doesn't this work now?
-
         # * Test the individual removal of a number of features, each from a different correlation group.
         # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
         test_feats_for_removal = dict()
@@ -177,7 +173,7 @@ class MixedStepSelect:
         # Find the best of those tested
         final_removal = sorted(remove_dict, key=remove_dict.get, reverse=True)[-1]
         # Remove and update corr dict if improves score
-        if remove_dict[final_removal] < self.benchmark:
+        if remove_dict[final_removal] <= self.benchmark:
             self.corr_dict[test_feats_for_removal[final_removal]]["out"].add(final_removal)
             self.corr_dict[test_feats_for_removal[final_removal]]["in"].remove(final_removal)
         return

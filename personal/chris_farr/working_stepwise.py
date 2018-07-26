@@ -4,21 +4,21 @@ from src.model_validation import ModelValidation
 from personal.chris_farr.mixed_stepwise_selection import MixedStepSelect
 from src.data.data_ks_filtered import DataKSFiltered
 from random import randint
-
+from sklearn.svm import LinearSVR
 # Setup
 data_class = DataKSFiltered()
 x_train, x_test, y_train, y_scaler = data_class.load_data()
 validation = ModelValidation()
 predictions_file = "personal/chris_farr/predictions.csv"
 features_file = "personal/chris_farr/features.csv"
-
+model = LinearSVR(random_state=0)
 
 # TODO Run mixed select
 for _ in range(100):
     starting_features = randint(5, len(x_train.columns))
     ms = MixedStepSelect(corr_threshold=.99, data_class=data_class, n_start_feats=starting_features)
+    ms.model = model
     ms.run(500)
-    model = ms.model
     in_features = ms.in_features
 
     # TODO Store results in CSV
