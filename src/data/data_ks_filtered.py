@@ -1,6 +1,8 @@
 from src.data.data_abstract import DataAbstract
 from src.data.data_simple import DataSimple
 from scipy import stats as st
+from src.data.util.interactions import InteractionChecker
+from pandas import merge
 
 """
 Template for data classes in the KSU project.
@@ -58,8 +60,17 @@ class DataKSFiltered(DataAbstract):
             # if p-value > a, add to list
             if ks[1] > a:
                 filtered_features.append(f)
+        x_data = x_data.loc[:, filtered_features]
 
-        return x_data[filtered_features]
+        # Find interactions of only features from the mixed stepwise feature list
+        ic = InteractionChecker(alpha=.01)
+        x_train, x_test, y_train, y_scaler = DataSimple.test_train_split(x_data, y_data)
+        ic.fit(x_train, y_train)
+        interactions = ic.transform(x_data)
+
+        # Combine x_data and interactions
+        x_data = merge(x_data, interactions, left_index=True, right_index=True)
+        return x_data
 
     @staticmethod
     def test_train_split(x_data, y_data):

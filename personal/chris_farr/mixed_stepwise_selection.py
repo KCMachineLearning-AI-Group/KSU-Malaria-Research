@@ -13,7 +13,8 @@ from multiprocessing import cpu_count
 
 class MixedStepSelect:
 
-    def __init__(self, random_start=True, multiplier=50, starting_batch_size=100, data_class=DataSimple(), corr_threshold=.99, n_start_feats=100):
+    def __init__(self, random_start=True, multiplier=50, starting_batch_size=100, data_class=DataSimple(),
+                 corr_threshold=.99, n_start_feats=100):
         self.multiplier = multiplier  # TODO Rename this or make more intuitive
         self.n_jobs = cpu_count() - 1
         self.starting_batch_size = starting_batch_size
@@ -76,7 +77,7 @@ class MixedStepSelect:
                 self.add_feature(x_train, y_train, y_scaler, batch_size)
             else:
                 last_removal_n = ((self.no_improvement_count - 2) * self.multiplier) + self.starting_batch_size
-                if self.no_improvement_count > 0 and last_removal_n > len(self.in_features):
+                if self.no_improvement_count > 1 and last_removal_n > len(self.in_features):
                     print(" ....skipping removal", end="", flush=True)
                     continue
                 self.remove_feature(x_train, y_train, y_scaler, batch_size)
@@ -150,10 +151,6 @@ class MixedStepSelect:
         return
 
     def remove_feature(self, x_train, y_train, y_scaler, batch_size):
-        # Remove features
-        # If True then pass (all have been tested already w/o changes)
-        # TODO why doesn't this work now?
-
         # * Test the individual removal of a number of features, each from a different correlation group.
         # Max this out at the number of features or close to for batch_size min(n_feats, batch_size)
         test_feats_for_removal = dict()
@@ -200,61 +197,3 @@ class MixedStepSelect:
         self.corr_dict = dict(
             [(i, {"out": set(feats), "in": set([])}) for i, feats in zip(range(len(corr_result)), corr_result)])
         return
-
-    def addition_scores(self, feature_list, in_features, x_train, y_train, model, y_scaler):
-        add_dict = {}
-        for feat in feature_list:
-            # Evaluate addition and log results
-            test_features = list(in_features) + [feat]
-            results = ModelValidation().score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
-                                                        pos_split=y_scaler.transform([[2.1]]), verbose=0)
-            new_score = np.mean(results["root_mean_sq_error"])
-            add_dict[feat] = new_score
-
-        return add_dict
-
-    def removal_scores(self, feature_list, in_features, x_train, y_train, model, y_scaler):
-        remove_dict = {}
-        for feat in feature_list:
-            # Evaluate addition and log results
-            test_features = [f for f in list(in_features.keys()) if f != feat]
-            results = ModelValidation().score_regressor(x_train.loc[:, test_features], y_train, model, y_scaler,
-                                                        pos_split=y_scaler.transform([[2.1]]), verbose=0)
-            new_score = np.mean(results["root_mean_sq_error"])
-            remove_dict[feat] = new_score
-
-        return remove_dict
-
-    # def store_results(self):
-    #     # Get benchmark value
-    #     # Create test prediction
-    #
-    #     # Save the feature names in a csv
-    #     selected_features = pd.DataFrame(list(self.in_features.keys()), columns=["features"])
-    #     # selected_features.to_csv("src/models/support/best_features.csv", index=False)
-    #
-    #     # Set name for round
-    #     round_name = "{}_feats_{:.2f}_rmse".format(len(self.in_features), np.mean(results["root_mean_sq_error"]))
-    #     # Read files
-    #     test_prediction_df = pd.read_csv("personal/chris_farr/ridge_predictions.csv", index_col=0)
-    #     selected_features_df = pd.read_csv("personal/chris_farr/ridge_features.csv", index_col=0)
-    #     # Add data
-    #     # Create test predictions df
-    #     new_test_prediction_df = pd.DataFrame(columns=[round_name], data=predictions, index=x_test.index)
-    #     test_prediction_df = pd.merge(test_prediction_df, new_test_prediction_df, how="outer", left_index=True,
-    #                                   right_index=True)
-    #     # test_prediction_df = new_test_prediction_df  # For first run
-    #     # Create selected features
-    #     new_selected_features_df = pd.DataFrame(columns=[round_name], data=[1] * len(selected_features),
-    #                                             index=selected_features.features)
-    #     # selected_features_df = pd.DataFrame(index=x_train.columns)  # For first run
-    #     selected_features_df = pd.merge(selected_features_df, new_selected_features_df, how="outer",
-    #                                     left_index=True, right_index=True).fillna(0).astype(int)
-    #     # Store files
-    #     test_prediction_df.to_csv("personal/chris_farr/non_linear_svm_predictions.csv")
-    #     selected_features_df.to_csv("personal/chris_farr/non_linear_svm_features.csv")
-    #     return
-
-
-mixed_step = MixedStepSelect()
-mixed_step.run(5)
