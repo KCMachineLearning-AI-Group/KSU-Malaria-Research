@@ -1,26 +1,59 @@
 # KSU-Malaria-Research
 KC AI Lab partnership with KSU Research on the Open Source Malaria Project
 
-## Describe problem statement
+## Project Goals
 
+Summary
+* Value add: Create efficiencies in testing compounds potent against malaria
+* Test results from 47 different compounds as the target
+* Chemical descriptors make up the independent variables
+* 23 compounds remain untested and need accurately predicted test results
+* More test data may be available in the future
+*This area of research is called QSAR (quantitative structure-activity relationships)
+
+Project Goals: 
+* Develop model that can accurately identify new compounds with IC50<2
+* Identify the features that are most likely to predict potency and explain adaptations that would increase potency
 
 ## Performance evaluation and considerations
 
+### Model Validation
+* Repeated stratified k-fold with 3 splits and 10 repeats
+* Each split contained a single potent compound (IC50<=2)
 
-## Various methods tried
 
+## Various methods applied
+
+Validation
+* Repeated Stratified K-Fold adapted for regression
+* Used all regression metrics available in sklearn
+* Primarily RMSE for performance comparison
+
+Applied Methods
+* Stepwise Feature Selection
+* Various additive models: linear regression, lasso, ridge
+* Ensembles: RandomForest, AdaBoostRegressor, GradientBoostingRegressor
+* SVMs: LinearSVR, SVR
+* Feature Interactions
+* Feature Elimination
+
+Top Performing Methods
+* Mixed-Stepwise Feature Selection
+* Linear Support Vector Regressor
+* Feature Interactions
+* Distribution Test Feature Elimination
 
 ## Selected approach
-
-
-
-**Correlation Grouped – Mixed Step-wise Selection Algorithm:**
 
 A problem with feature selection is the unexpected change in performance when making 
 multiple moves at once. However, exhaustive search is too resource intensive for datasets that 
 have thousands of columns. By grouping highly correlated features we were able to more efficiently 
 search the feature space. Subsets of the feature space were tested for performance improvements from single 
 feature changes.
+
+There is a high risk that any single high performing model has overfit the small training set, even when using
+stratified k-fold cross validation. A robustness approach was taken which produced many predictions for each test
+example and also produced coefficients for each feature for further analysis.
 
 ### Feature elimination
 
@@ -45,45 +78,63 @@ interaction term.
 
 ### Mix-stepwise Algorithm
 
+The step-wise algorithm was ran over 80 times, with random starting features and counts.
+
 Algorithm:
 
-`Group features into highly (99%) correlated buckets`
-
-`Select random subset of features`
-
-`Calculate benchmark model performance`
-
-`Iterations without improvement = 0`
-
-`Batch size increase as iterations without improvement increases`
-
-`Loop`
-
-    `If i is even:`
-
-        `n = batch size + scaling factor`
-
-        `Select n random features from current selected feature space`
-	    
-        `if largest RMSE performance gain > 0`
-                
-            'remove worst feature`
+    Group features into highly (99%) correlated buckets
     
-	`If i is odd:`
-	
-	    `n = batch size + scaling factor`
+    Select random subset of features
+    
+    Calculate benchmark model performance
+    
+    Iterations without improvement = 0
+    
+    Batch size increase as iterations without improvement increases
+    
+    Loop
+    
+        If i is even:
+    
+            n = batch size + scaling factor
+    
+            Select n random features from current selected feature space
+            
+            if largest RMSE performance gain > 0:
+                remove worst feature
+        
+        If i is odd:
+        
+            n = batch size + scaling factor
+            
+            Select a random feature from n random correlation groups to test for removal
+            
+            if largest RMSE performance gain > 0:
+                add best feature
 	    
-        `Select a random feature from n random correlation groups to test for removal`
+	    Set new benchmark
 	
-	    
-	If any improve the score over the current benchmark, add the one with the largest improvement
-	Establish new benchmark
-	If benchmark improved, iter w/o improvement = 0, else +1
-	If iter w/o improvement > 15, stop
+	    If benchmark improved:
+	        iter w/o improvement = 0
+        else: 
+            iter w/o improvement++
+	
+	    If iter w/o improvement > 15:
+	        stop
 
 
 ## Test predictions and confidence interval analysis
 
+The predictions of the 80 models were considered for arriving at a 99% confidence interval for each of the compounds. 
+A few compounds (OSM-S-146, OSM-S-151, OSM-S-152, OSM-S-153), had predictions ranging from large negative values to 
+large positive values, which we believe could be safely ignored as not potent compounds. OSM-S-144 had the confidence 
+interval closest to 0 value and is the most promising among the 23 compounds. Two other compounds which had prediction 
+closer to minimum value were OSM-S-169 and OSM-S-170. The rest of the compounds had prediction values either starting 
+from a double digit positive or a double digit negative numbers. Hence, based on the multiple runs,  OSM-S-144 had the 
+confidence interval closest to minimum value (0.36) and, OSM-S-169 and OSM-S-170 were the next 2 compounds with closer 
+to the minimum value. Another observation made from the predictions were, the runs which had predictions closer to 
+minimum value included features ranging in values 75 - 95, while the converse of it is not true ( Not all runs which 
+included features in that value range predicted less potency value).
 
 ## Feature importance analysis
 
@@ -93,6 +144,3 @@ Algorithm:
 
 
 
-## Model Validation
-* [See trello for class documentation](https://trello.com/c/905HuiRU)
-* See leaderboard.py for example usage
