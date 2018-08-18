@@ -16,7 +16,7 @@ class MixedStepSelect:
     def __init__(self, random_start=True, multiplier=50, starting_batch_size=100, data_class=DataSimple(),
                  corr_threshold=.99, n_start_feats=100):
         self.multiplier = multiplier  # TODO Rename this or make more intuitive
-        self.n_jobs = cpu_count() - 1
+        self.n_jobs = cpu_count() - 1 - 3
         self.starting_batch_size = starting_batch_size
         self.no_improvement_count = 0
         self.last_benchmark = np.inf

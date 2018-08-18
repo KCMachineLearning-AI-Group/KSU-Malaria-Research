@@ -1,0 +1,9 @@
+Outline
+* Describe problem statement
+* Performance evaluation and considerations
+* Various methods tried
+* Selected approach
+* Test predictions and confidence interval analysis
+* Cross-validated train predictions from top performing models
+* Feature importance analysis
+* Recommendations and further analysis
