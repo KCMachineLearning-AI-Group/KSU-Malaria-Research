@@ -4,7 +4,7 @@ from src.data.data_non_linear import DataNonLinear
 """
 Template for data classes in the KSU project.
   * Copy into new file
-  * Rename class
+  * Rename class 
   * Implement TODO's below
 """
 

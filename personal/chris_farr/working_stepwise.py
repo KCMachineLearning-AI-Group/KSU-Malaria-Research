@@ -15,10 +15,10 @@ model = LinearSVR(random_state=0)
 
 # TODO Run mixed select
 for _ in range(100):
-    starting_features = randint(5, len(x_train.columns))
+    starting_features = randint(5, int(len(x_train.columns) / 2))
     ms = MixedStepSelect(corr_threshold=.99, data_class=data_class, n_start_feats=starting_features)
     ms.model = model
-    ms.run(500)
+    ms.run(1000)
     in_features = ms.in_features
 
     # TODO Store results in CSV
