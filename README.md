@@ -138,8 +138,22 @@ included features in that value range predicted less potency value).
 
 ## Feature importance analysis
 
+Feature importance was measured in two ways, both the average coefficient for the feature and the percentage of times that
+feature was selected when using the algorithm above. For instance, `AATSC0i` was selected in 88% of the final models
+and had the smalled coefficient average of -0.294. This would indicate that a larger value at least strongly correlates
+with a lower IC50 value. The next descriptor to consider is `ATSC3s` which had a large coefficient average of 0.28. 
+This would indicate that a smaller descriptor value would corellate with an increase in potency. 
+[This visual](https://kate-young.github.io/KSUMalaria_Visualizations/features.html) outlines all of the features and their measured importances.
 
 ## Recommendations and further analysis
+
+This research alone may not be comprehensive enough to determine the next compound for testing. However, our recommendation
+for which compounds to investigate further for potency against malaria would be first, OSM-S-144, and second OSM-S-169
+and OSM-S-170. Our research highlighted those compounds as the most likely to have a potence against malaria.
+
+Synthesizing compounds may also be an option for creating a potent compound that was not available in our test datast. 
+Based on this research we would recommend exploring the impacts that a larger `AATSC0i` and a smaller `ATSC3s` would 
+have on compound potency.
 
 
 
