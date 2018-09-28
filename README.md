@@ -134,7 +134,7 @@ from a double digit positive or a double digit negative numbers. Hence, based on
 confidence interval closest to minimum value (0.36) and, OSM-S-169 and OSM-S-170 were the next 2 compounds with closer 
 to the minimum value. Another observation made from the predictions were, the runs which had predictions closer to 
 minimum value included features ranging in values 75 - 95, while the converse of it is not true ( Not all runs which 
-included features in that value range predicted less potency value).
+included features in that value range predicted less potency value). See [this visual](https://kate-young.github.io/KSUMalaria_Visualizations/) for the full test results.
 
 ## Feature importance analysis
 
