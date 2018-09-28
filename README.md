@@ -1,7 +1,7 @@
 # KSU-Malaria-Research
 KC AI Lab partnership with KSU Research on the Open Source Malaria Project
 
-## Project Goals
+## Project goals
 
 Summary
 * Value add: Create efficiencies in testing compounds potent against malaria
@@ -17,10 +17,18 @@ Project Goals: 
 
 ## Performance evaluation and considerations
 
-### Model Validation
+### Model validation
 * Repeated stratified k-fold with 3 splits and 10 repeats
-* Each split contained a single potent compound (IC50<=2)
+* Each split contained a single potent compound (IC50<=2) to avoid `easy` to predict splits having all large IC50s
 
+### Metrics used
+[Sklearn Regression Metrics](http://scikit-learn.org/stable/modules/model_evaluation.html#regression-metrics)
+* Root Mean Squared Error(metric used in feature selection)
+* R2
+* Explained Variance
+* Mean Squared Error
+* Mean Absolute Error
+* Median Absolute Error
 
 ## Various methods applied
 
@@ -46,14 +54,14 @@ Top Performing Methods
 ## Selected approach
 
 A problem with feature selection is the unexpected change in performance when making 
-multiple moves at once. However, exhaustive search is too resource intensive for datasets that 
+multiple moves at once. However, exhaustive search is too resource intensive for data sets that 
 have thousands of columns. By grouping highly correlated features we were able to more efficiently 
 search the feature space. Subsets of the feature space were tested for performance improvements from single 
 feature changes.
 
-There is a high risk that any single high performing model has overfit the small training set, even when using
+There is a high risk that any single high performing model has over-fit the small training set, even when using
 stratified k-fold cross validation. A robustness approach was taken which produced many predictions for each test
-example and also produced coefficients for each feature for further analysis.
+example and also captured coefficients for each feature to use in further analysis.
 
 ### Feature elimination
 
@@ -70,13 +78,12 @@ was removed before running the feature selection algorithm.
 ### Feature engineering
 
 After features were removed using method above, all two-term feature interactions were tested for statistical 
-significance using a linear regression model on the full train setm. Due to high-dimensionality, the 
+significance using a linear regression model on the full train set. Due to high-dimensionality, the 
 interaction terms fed into the algorithm were first narrowed down to only interactions that had a statistically 
-significant (p < 0.01) relationship to the IC50 value, controlling for the values of the two features of the 
-interaction term.
+significant (p < 0.01) relationship to the IC50 value.
 
 
-### Mix-stepwise Algorithm
+### Mix-stepwise algorithm
 
 The step-wise algorithm was ran over 80 times, with random starting features and counts.
 
@@ -125,32 +132,31 @@ Algorithm:
 
 ## Test predictions and confidence interval analysis
 
-The predictions of the 80 models were considered for arriving at a 99% confidence interval for each of the compounds. 
+The predictions from each of the 80 models were considered for arriving at a 99% confidence interval for each compound. 
 A few compounds (OSM-S-146, OSM-S-151, OSM-S-152, OSM-S-153), had predictions ranging from large negative values to 
-large positive values, which we believe could be safely ignored as not potent compounds. OSM-S-144 had the confidence 
-interval closest to 0 value and is the most promising among the 23 compounds. Two other compounds which had prediction 
-closer to minimum value were OSM-S-169 and OSM-S-170. The rest of the compounds had prediction values either starting 
-from a double digit positive or a double digit negative numbers. Hence, based on the multiple runs,  OSM-S-144 had the 
-confidence interval closest to minimum value (0.36) and, OSM-S-169 and OSM-S-170 were the next 2 compounds with closer 
-to the minimum value. Another observation made from the predictions were, the runs which had predictions closer to 
-minimum value included features ranging in values 75 - 95, while the converse of it is not true ( Not all runs which 
-included features in that value range predicted less potency value).
+large positive values, which we believe indicates our inability to predict their real IC50 values. OSM-S-144 had the confidence 
+interval closest to 0 value and is the most promising among the 23 compounds due to the low average and relatively narrow 
+confidence interval (-5 to 5). Two other compounds which had prediction closer to minimum value were OSM-S-169 and OSM-S-170. 
+The rest of the compounds had prediction values either starting from a double digit positive or a double digit negative numbers
+and do not provide evidence of potency based on this analysis. 
 
 ## Feature importance analysis
 
 Feature importance was measured in two ways, both the average coefficient for the feature and the percentage of times that
 feature was selected when using the algorithm above. For instance, `AATSC0i` was selected in 88% of the final models
-and had the smalled coefficient average of -0.294. This would indicate that a larger value at least strongly correlates
-with a lower IC50 value. The next descriptor to consider is `ATSC3s` which had a large coefficient average of 0.28. 
-This would indicate that a smaller descriptor value would corellate with an increase in potency. 
-[This visual](https://kate-young.github.io/KSUMalaria_Visualizations/features.html) outlines all of the features and their measured importances.
+and had the smalled coefficient average of -0.294. This would indicate that a larger value correlates with a lower IC50 
+value. The next descriptor to consider is `ATSC3s` which had a large coefficient average of 0.28.  This would indicate 
+that a smaller descriptor value would correlate with an increase in potency. [This visual](https://kate-young.github.io/KSUMalaria_Visualizations/features.html) outlines all of the 
+features and their measured importance.
 
 ## Recommendations and further analysis
 
 This research alone may not be comprehensive enough to determine the next compound for testing. However, our recommendation
-for which compounds to investigate further for potency against malaria would be first, OSM-S-144, and second OSM-S-169
-and OSM-S-170. Our research highlighted those compounds as the most likely to have a potence against malaria.
+for which compounds to investigate further for potency against malaria would be first, OSM-S-144, second, OSM-S-169
+and third, OSM-S-170. Our research highlighted those compounds as the most likely to have a low IC50 value against Malaria.
 
-Synthesizing compounds may also be an option for creating a potent compound that was not available in our test datast. 
+Synthesizing compounds may also be an option for creating a potent compound that was not available in our test data set. 
 Based on this research we would recommend exploring the impacts that a larger `AATSC0i` and a smaller `ATSC3s` would 
-have on compound potency.
+have on compound potency. We would also encourage exploring the full list of features and their expected coefficients
+to build a more complete profile of a potent compound. Additionally, starting with an existing potent compound, such as OSM-S-106,
+and modifying it's characteristics based on this feature analysis may help to increase the potency of the compound.
