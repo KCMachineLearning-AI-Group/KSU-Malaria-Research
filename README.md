@@ -9,7 +9,7 @@ Summary
 * Chemical descriptors make up the independent variables
 * 23 compounds remain untested and need accurately predicted test results
 * More test data may be available in the future
-*This area of research is called QSAR (quantitative structure-activity relationships)
+* This area of research is called QSAR (quantitative structure-activity relationships)
 
 Project Goals: 
 * Develop model that can accurately identify new compounds with IC50<2
@@ -136,9 +136,9 @@ The predictions from each of the 80 models were considered for arriving at a 99%
 A few compounds (OSM-S-146, OSM-S-151, OSM-S-152, OSM-S-153), had predictions ranging from large negative values to 
 large positive values, which we believe indicates our inability to predict their real IC50 values. OSM-S-144 had the confidence 
 interval closest to 0 value and is the most promising among the 23 compounds due to the low average and relatively narrow 
-confidence interval (-5 to 5). Two other compounds which had prediction closer to minimum value were OSM-S-169 and OSM-S-170. 
+confidence interval (Roughly -5 to 5). Two other compounds which had prediction closer to minimum value were OSM-S-169 and OSM-S-170. 
 The rest of the compounds had prediction values either starting from a double digit positive or a double digit negative numbers
-and do not provide evidence of potency based on this analysis. 
+and do not provide evidence of potency based on this analysis. See [this visual](https://kate-young.github.io/KSUMalaria_Visualizations/) for the full test results.
 
 ## Feature importance analysis
 
