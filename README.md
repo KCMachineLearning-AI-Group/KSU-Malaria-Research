@@ -133,10 +133,10 @@ Algorithm:
 ## Test predictions and confidence interval analysis
 
 The predictions from each of the 80 models were considered for arriving at a 99% confidence interval for each compound. 
-A few compounds (OSM-S-146, OSM-S-151, OSM-S-152, OSM-S-153), had predictions ranging from large negative values to 
-large positive values, which we believe indicates our inability to predict their real IC50 values. OSM-S-144 had the confidence 
-interval closest to 0 value and is the most promising among the 23 compounds due to the low average and relatively narrow 
-confidence interval (Roughly -5 to 5). Two other compounds which had prediction closer to minimum value were OSM-S-169 and OSM-S-170. 
+A few compounds (`OSM-S-146`, `OSM-S-151`, `OSM-S-152`, `OSM-S-153`), had predictions ranging from large negative values to 
+large positive values, which we believe indicates our inability to predict the real IC50 values for these compounds. `OSM-S-144` 
+had the confidence interval closest to 0 value and is the most promising among the 23 compounds due to the low average and relatively narrow 
+confidence interval (Roughly -5 to 5). Two other compounds which had prediction closer to minimum value were `OSM-S-169` and `OSM-S-170`. 
 The rest of the compounds had prediction values either starting from a double digit positive or a double digit negative numbers
 and do not provide evidence of potency based on this analysis. See [this visual](https://kate-young.github.io/KSUMalaria_Visualizations/) for the full test results.
 
@@ -152,11 +152,11 @@ features and their measured importance.
 ## Recommendations and further analysis
 
 This research alone may not be comprehensive enough to determine the next compound for testing. However, our recommendation
-for which compounds to investigate further for potency against malaria would be first, OSM-S-144, second, OSM-S-169
-and third, OSM-S-170. Our research highlighted those compounds as the most likely to have a low IC50 value against Malaria.
+for which compounds to investigate further for potency against malaria would be first, `OSM-S-144`, second, `OSM-S-169`
+and third, `OSM-S-170`. Our research highlighted those compounds as the most likely to have a low IC50 value against Malaria.
 
 Synthesizing compounds may also be an option for creating a potent compound that was not available in our test data set. 
 Based on this research we would recommend exploring the impacts that a larger `AATSC0i` and a smaller `ATSC3s` would 
 have on compound potency. We would also encourage exploring the full list of features and their expected coefficients
-to build a more complete profile of a potent compound. Additionally, starting with an existing potent compound, such as OSM-S-106,
+to build a more complete profile of a potent compound. Additionally, starting with an existing potent compound, such as `OSM-S-106`,
 and modifying it's characteristics based on this feature analysis may help to increase the potency of the compound.
