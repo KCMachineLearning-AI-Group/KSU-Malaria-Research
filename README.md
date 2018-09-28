@@ -154,7 +154,3 @@ and OSM-S-170. Our research highlighted those compounds as the most likely to ha
 Synthesizing compounds may also be an option for creating a potent compound that was not available in our test datast. 
 Based on this research we would recommend exploring the impacts that a larger `AATSC0i` and a smaller `ATSC3s` would 
 have on compound potency.
-
-
-
-
