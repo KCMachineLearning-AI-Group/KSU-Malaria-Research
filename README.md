@@ -138,7 +138,7 @@ large positive values, which we believe indicates our inability to predict the r
 had the confidence interval closest to 0 value and is the most promising among the 23 compounds due to the low average and relatively narrow 
 confidence interval (Roughly -5 to 5). Two other compounds which had prediction closer to minimum value were `OSM-S-169` and `OSM-S-170`. 
 The rest of the compounds had prediction values either starting from a double digit positive or a double digit negative numbers
-and do not provide evidence of potency based on this analysis. See [this visual](https://kate-young.github.io/KSUMalaria_Visualizations/) for the full test results.
+and do not provide evidence of potency based on this analysis. See [this visual](https://kate-young.github.io/KSUMalaria_Visualizations/) for the full test results. The [full list](https://github.com/kate-young/KSUMalaria_Visualizations/blob/master/data/predictions.csv) of runs contains the RMSE and test predictions for each model that was trained during the repeated stepwise process.
 
 ## Feature importance analysis
 
@@ -147,7 +147,7 @@ feature was selected when using the algorithm above. For instance, `AATSC0i` was
 and had the smalled coefficient average of -0.294. This would indicate that a larger value correlates with a lower IC50 
 value. The next descriptor to consider is `ATSC3s` which had a large coefficient average of 0.28.  This would indicate 
 that a smaller descriptor value would correlate with an increase in potency. [This visual](https://kate-young.github.io/KSUMalaria_Visualizations/features.html) outlines all of the 
-features and their measured importance.
+features and their measured importance. The [underlying data](https://github.com/kate-young/KSUMalaria_Visualizations/blob/master/data/feature_importance.csv) has all of the detailed information.
 
 ## Recommendations and further analysis
 
